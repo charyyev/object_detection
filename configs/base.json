@@ -1,0 +1,24 @@
+{
+    "model": "pixor",
+    "date": "06-04-2022",
+    "ver": 1,
+    "device": "cpu",
+    "experiments": "/home/sapar/experiments/crypto_classification",
+    "train": 
+    {
+        "batch_size": 32,
+        "learning_rate": 0.0001,
+        "epochs": 100,
+        "batch_sampler": "/home/sapar/projects/crypto_classification/data/train.txt",
+        "dataset": "/home/sapar/projects/crypto_classification/data/train.csv"
+        
+    },
+    "val": 
+    {
+        "batch_size": 8,
+        "batch_sampler": "/home/sapar/projects/crypto_classification/data/val.txt",
+        "dataset": "/home/sapar/projects/crypto_classification/data/val.csv",
+        "validate_interval": 5
+    }
+
+}
