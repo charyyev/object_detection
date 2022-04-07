@@ -8,23 +8,15 @@ from utils.preprocess import transform_metric2label, trasform_label2metric, get_
 
 
 class KittiDataset(Dataset):
-    def __init__(self, pointcloud_folder, label_folder, data_file) -> None:
+    def __init__(self, pointcloud_folder, label_folder, data_file, config) -> None:
         self.pointcloud_folder = pointcloud_folder
         self.label_folder = label_folder
         self.data_file = data_file
 
         self.create_data_list()
 
-        self.geometry = {
-        'L1': -40.0,
-        'L2': 40.0,
-        'W1': 0.0,
-        'W2': 70.0,
-        'H1': -2.5,
-        'H2': 1.0,
-        'input_shape': (800, 700, 36),
-        'label_shape': (200, 175, 6)
-    }
+        self.geometry = config["geometry"]
+        self.config = config
        
 
     def __len__(self):
@@ -39,13 +31,10 @@ class KittiDataset(Dataset):
         scan = scan.permute(2, 0, 1)
         reg_map, cls_map = self.get_label(idx)
         reg_map = torch.from_numpy(reg_map).permute(2, 0, 1)
-        class_list, boxes = self.read_bbox(idx)
+        #class_list, boxes = self.read_bbox(idx)
 
 
         return {"voxel": scan, 
-                "class_list": class_list, 
-                "boxes": boxes,
-                "points": points,
                 "reg_map": reg_map,
                 "cls_map": cls_map
                 }        
@@ -54,15 +43,15 @@ class KittiDataset(Dataset):
         return np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 4)
 
     def voxelize(self, points):
-        x_min = 0
-        x_max = 70
-        y_min = -40
-        y_max = 40
-        z_min = -2.5
-        z_max = 1
-        x_res = 0.1
-        y_res = 0.1
-        z_res = 0.1
+        x_min = self.geometry["x_min"]
+        x_max = self.geometry["x_max"]
+        y_min = self.geometry["y_min"]
+        y_max = self.geometry["y_max"]
+        z_min = self.geometry["z_min"]
+        z_max = self.geometry["z_max"]
+        x_res = self.geometry["x_res"]
+        y_res = self.geometry["y_res"]
+        z_res = self.geometry["z_res"]
 
         x_size = int((x_max - x_min) / x_res)
         y_size = int((y_max - y_min) / y_res)
@@ -96,7 +85,7 @@ class KittiDataset(Dataset):
 
         f_name = '{}.txt'.format(self.data_list[idx])
         label_path = os.path.join(self.label_folder, f_name)
-        object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
+        object_list = self.config["objects"]
         reg_map = np.zeros(self.geometry['label_shape'], dtype=np.float32)
         cls_map = np.zeros((self.geometry['label_shape'][0], self.geometry['label_shape'][1]), dtype = np.int64)
         with open(label_path, 'r') as f:
@@ -160,7 +149,7 @@ class KittiDataset(Dataset):
 
 
     def read_bbox(self, idx):
-        object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
+        object_list = self.config["objects"]
 
         corner_list = []
         class_list = []

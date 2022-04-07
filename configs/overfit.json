@@ -1,8 +1,8 @@
 {
     "model": "pixor",
-    "date": "06-04-2022",
+    "date": "07-04-2022",
     "ver": 1,
-    "note": "",
+    "note": "overfit",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "data":
@@ -40,21 +40,21 @@
         "epochs": 100,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [20, 30],
+        "lr_decay_at": [500, 1000],
         "save_every": 5,
-        "data": "/home/stpc/data/train/train.txt",
+        "data": "/home/stpc/data/train/train_one.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
         "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced"
         
     },
     "val": 
     {
-        "batch_size": 1,
+        "batch_size": 2,
         "batch_sampler": "/home/sapar/projects/crypto_classification/data/val.txt",
         "data": "/home/stpc/data/train/val.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
         "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced",
-        "val_every": 5
+        "val_every": 10000
     },
     "loss":
     {

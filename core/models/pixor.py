@@ -194,7 +194,7 @@ class Header(nn.Module):
         self.conv4 = conv3x3(96, 96, bias=bias)
         self.bn4 = nn.BatchNorm2d(96)
 
-        self.clshead = conv3x3(96, 3, bias=True)
+        self.clshead = conv3x3(96, 4, bias=True)
         self.reghead = conv3x3(96, 6, bias=True)
 
     def forward(self, x):

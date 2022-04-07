@@ -2,12 +2,14 @@ from core.kitti_dataset import KittiDataset
 from core.models.pixor import PIXOR
 from utils.one_hot import one_hot
 from utils.preprocess import trasform_label2metric
+from core.losses import SmoothL1Loss
 
 from torch.utils.data import Dataset, DataLoader
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import Polygon
+import json
 
 def convert_format(boxes_array):
     """
@@ -149,17 +151,25 @@ if __name__ == "__main__":
     pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
     data_file = "/home/stpc/data/train/train.txt"
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file)
 
-    data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
+    with open("/home/stpc/proj/object_detection/configs/base.json", 'r') as f:
+        config = json.load(f)
 
-    #net = PIXOR(geom, use_bn=False)
+
+    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"])
+    data_loader = DataLoader(dataset, shuffle=True, batch_size=2)
+
+    net = PIXOR(geom, use_bn=False)
+    reg_loss = SmoothL1Loss()
 
     for data in data_loader:
-        cls_one_hot = one_hot(data["cls_map"], num_classes= 4 , device="cpu", dtype=data["cls_map"].dtype)
-        filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), geom)
-        
-        #imgplot = plt.imshow(torch.squeeze(data["cls_map"]).permute(0, 1))
+        #cls_one_hot = one_hot(data["cls_map"], num_classes= 4 , device="cpu", dtype=data["cls_map"].dtype)
+        #filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), geom)
+        #loss = reg_loss(data["reg_map"], data["reg_map"], data["cls_map"])
+        #print(loss)
+        pred = net(data["voxel"])
+        print(pred["cls_map"].shape)
+        #imgplot = plt.imshow(torch.squeeze(mask).permute(0, 1))
         #plt.show()
         #preds = net(data["voxel"])
         #print(preds["reg_map"].shape)

@@ -1,4 +1,4 @@
-#from core.agents.train_agent import TrainAgent
+from core.train_agent import TrainAgent
 
 import argparse
 import json
@@ -17,9 +17,7 @@ if __name__ == "__main__":
     f = open(args.config)
     config = json.load(f)
 
-    print(config)
-
-    # agent = TrainAgent(config)
-    # agent.train()
+    agent = TrainAgent(config)
+    agent.train()
         
     
