@@ -57,7 +57,7 @@ class TrainAgent:
             pred = self.model(voxel)
             cls = self.cls_loss_fn(pred["cls_map"], cls_label)
             reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
-            loss = cls + reg
+            loss = cls + 3 * reg
 
             loss.backward()
             self.optimizer.step()

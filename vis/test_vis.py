@@ -1,19 +1,21 @@
 import os
 import numpy as np
+import json
 import matplotlib.pyplot as plt
 import vispy
 from vispy.scene import visuals
 from vispy.scene.cameras import TurntableCamera
 from vispy.scene import SceneCanvas
+from vispy.scene.visuals import Text
 
 from torch.utils.data import Dataset, DataLoader
 import torch
+import torch.nn.functional as F
 
 from utils.preprocess import voxelize, voxel_to_points
 from utils.postprocess import filter_pred
 from core.kitti_dataset import KittiDataset
 from utils.one_hot import one_hot
-import json
 from core.models.pixor import PIXOR
 
 
@@ -21,6 +23,7 @@ class Vis():
     def __init__(self, data_loader, model, geom):
         self.data_loader = data_loader
         self.model = model
+        self.model.eval()
         self.geom = geom
         self.index = 0
         self.canvas = SceneCanvas(keys='interactive',
@@ -37,6 +40,12 @@ class Vis():
         self.scan_view.add(self.scan_vis)
         visuals.XYZAxis(parent=self.scan_view.scene)
         self.bbox = vispy.scene.visuals.Line(parent=self.scan_view.scene)
+        self.gt_bbox = vispy.scene.visuals.Line(parent=self.scan_view.scene)
+
+        self.draw_gt = False
+        self.use_current_data = False
+
+        self.text = Text(parent=self.scan_view.scene, color='white', font_size = 50)
 
         self.update_scan()
 
@@ -44,7 +53,6 @@ class Vis():
 
 
     def get_corners(self, bbox):
-        #h, w, l, x, y, z, yaw = bbox[1:]
         cls, scores, x, y, l ,w, yaw = bbox
 
         corners = []
@@ -75,11 +83,18 @@ class Vis():
 
 
 
-    def plot_boxes(self, class_list, boxes):
+    def plot_boxes(self, class_list, scores, boxes):
+        self.gt_bbox.visible = False
+        if len(boxes) == 0:
+            self.bbox.visible = False
+            return
+
         object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
         connect = []
         points = []
         colors = []
+        text = []
+        text_pos = []
        
         for i, box in enumerate(boxes):
             color = np.tile(object_colors[class_list[i]], (4, 1))
@@ -100,27 +115,111 @@ class Vis():
                 connect = np.concatenate((connect, con), axis = 0)
                 colors = np.concatenate((colors, color), axis = 0)
 
+            text.append(str(scores[i])[:4])
+            text_pos.append(corners[0])
+            #Text(str(scores[i])[ :4], parent=self.scan_view.scene, color='white', pos = corners[0], font_size = 50)
+        self.text.text = text
+        self.text.pos = text_pos
+        self.bbox.visible = True
         self.bbox.set_data(pos=points,
                             connect=connect,
                             color=colors)
 
+    def plot_gt_boxes(self, class_list, boxes):
+        self.bbox.visible = False
+        if len(boxes) == 0:
+            self.gt_bbox.visible = False
+            return
+
+        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
+        connect = []
+        points = []
+        colors = []
+
+        for i in range(len(boxes)):
+            box = boxes[i]
+            if isinstance(class_list[i], int):
+                break
+            class_list[i] = class_list[i].tolist()[0]
+            for j in range(len(box)):
+                box[j] = box[j].numpy()[0]
+       
+       
+        for i, box in enumerate(boxes):
+            color = np.tile(object_colors[class_list[i]], (8, 1))
+            corners = np.array(box)
+            j = 8 * i
+            con = [[j, j + 1],
+                   [j + 1, j + 2],
+                   [j + 2, j + 3],
+                   [j + 3, j],
+                   [j + 4, j + 5],
+                   [j + 5, j + 6],
+                   [j + 6, j + 7],
+                   [j + 7, j + 4],
+                   [j, j + 4],
+                   [j + 1, j + 5],
+                   [j + 2, j + 6],
+                   [j + 3, j + 7]]
+            con = np.array(con)
+
+            if i == 0:
+                points = corners
+                connect = con
+                colors = color
+            else:
+                points = np.concatenate((points, corners), axis = 0)
+                connect = np.concatenate((connect, con), axis = 0)
+                colors = np.concatenate((colors, color), axis = 0)
+        self.gt_bbox.visible = True
+        self.gt_bbox.set_data(pos=points,
+                            connect=connect,
+                            color=colors)
+
+
+    def get_point_color_using_intensity(self, points):
+        scale_factor = 500
+        scaled_intensity = np.clip(points[:, 3] * scale_factor, 0, 255)
+        scaled_intensity = scaled_intensity.astype(np.uint8)
+        cmap = plt.get_cmap("viridis")
+
+        # Initialize the matplotlib color map
+        sm = plt.cm.ScalarMappable(cmap=cmap)
+
+        # Obtain linear color range
+        color_range = sm.to_rgba(np.linspace(0, 1, 256), bytes=True)[:, 2::-1]
+
+        color_range = color_range.reshape(256, 3).astype(np.float32) / 255.0
+        colors = color_range[scaled_intensity]
+        return colors
+
+
 
     def update_scan(self):
-        data = next(iter(self.data_loader))
+        if self.use_current_data:
+            data = self.current_data
+        else:
+            data = next(iter(self.data_loader))
+            self.current_data = data
         voxel = data["voxel"]
         pred = self.model(voxel)
+        pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
         boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), pred["cls_map"].detach().cpu().numpy(), self.geom)
-        points = voxel_to_points(voxel.squeeze().permute(2, 1, 0).numpy())
+       
+        points = data["points"].squeeze().numpy()
+        
         box_list = []
         class_list = []
-
+        scores = []
         for i in range(boxes.shape[0]):
             box = boxes[i]
             box_list.append(self.get_corners(box))
             class_list.append(box[0])
+            scores.append(box[1])
         
 
-        colors = np.array([0, 0, 1])
+        #colors = np.array([0, 0, 1])
+        colors = self.get_point_color_using_intensity(points)
         
         self.canvas.title = str(self.index)
         self.scan_vis.set_data(points[:, :3],
@@ -128,18 +227,29 @@ class Vis():
                             edge_color=colors,
                             size=1.0)
 
-        self.plot_boxes(class_list, box_list)
+
+        if not self.draw_gt:
+            self.plot_boxes(class_list, scores, box_list)
+        else:
+            self.plot_gt_boxes(data["cls_list"], data["boxes"])
 
 
     def _key_press(self, event):
         if event.key == 'N':
+            self.use_current_data = False
             if self.index < len(self.data_loader) - 1:
                 self.index += 1
             self.update_scan()
 
         if event.key == 'B':
+            self.use_current_data = False
             if self.index > 0:
                 self.index -= 1
+            self.update_scan()
+
+        if event.key == "G":
+            self.draw_gt = not self.draw_gt
+            self.use_current_data = True
             self.update_scan()
 
         if event.key == 'Q':
@@ -172,15 +282,13 @@ if __name__ == "__main__":
 
     with open("/home/stpc/proj/object_detection/configs/overfit.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_overfit_07-04-2022_1/checkpoints/90epoch"
+    model_path = "/home/stpc/experiments/pixor_small_08-04-2022_3/checkpoints/495epoch"
 
     pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
-    data_file = "/home/stpc/data/train/train_one.txt"
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"])
+    data_file = "/home/stpc/data/train/train_small.txt"
+    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], train = False)
     data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
-
-    
 
     model = PIXOR(config["data"]["kitti"]["geometry"])
     model.load_state_dict(torch.load(model_path, map_location=config["device"]))

@@ -8,7 +8,7 @@ from utils.preprocess import transform_metric2label, trasform_label2metric, get_
 
 
 class KittiDataset(Dataset):
-    def __init__(self, pointcloud_folder, label_folder, data_file, config) -> None:
+    def __init__(self, pointcloud_folder, label_folder, data_file, config, train = True) -> None:
         self.pointcloud_folder = pointcloud_folder
         self.label_folder = label_folder
         self.data_file = data_file
@@ -17,6 +17,7 @@ class KittiDataset(Dataset):
 
         self.geometry = config["geometry"]
         self.config = config
+        self.train = train
        
 
     def __len__(self):
@@ -31,13 +32,21 @@ class KittiDataset(Dataset):
         scan = scan.permute(2, 0, 1)
         reg_map, cls_map = self.get_label(idx)
         reg_map = torch.from_numpy(reg_map).permute(2, 0, 1)
-        #class_list, boxes = self.read_bbox(idx)
+        
+        if self.train:
+            return {"voxel": scan, 
+                    "reg_map": reg_map,
+                    "cls_map": cls_map
+                    }
 
-
+        class_list, boxes = self.read_bbox(idx)
         return {"voxel": scan, 
                 "reg_map": reg_map,
-                "cls_map": cls_map
-                }        
+                "cls_map": cls_map,
+                "cls_list": class_list,
+                "points": points,
+                "boxes": boxes,
+                }       
 
     def read_points(self, lidar_path):
         return np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 4)

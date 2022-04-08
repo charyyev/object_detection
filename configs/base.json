@@ -40,7 +40,7 @@
         "epochs": 100,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [20, 30],
+        "lr_decay_at": [200, 300],
         "save_every": 5,
         "data": "/home/stpc/data/train/train.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
