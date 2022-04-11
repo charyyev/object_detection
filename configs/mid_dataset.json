@@ -1,12 +1,12 @@
 {
     "model": "pixor",
-    "date": "08-04-2022",
+    "date": "11-04-2022",
     "ver": 1,
-    "note": "all",
+    "note": "mid",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "resume_training": true,
-    "resume_from": 180,
+    "resume_from": 40,
     "data":
     {
         "kitti":
@@ -44,7 +44,7 @@
         "weight_decay": 0.0001,
         "lr_decay_at": [2000, 3000],
         "save_every": 5,
-        "data": "/home/stpc/data/train/train.txt",
+        "data": "/home/stpc/data/train/train_mid.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
         "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced"
         
@@ -52,7 +52,7 @@
     "val": 
     {
         "batch_size": 2,
-        "data": "/home/stpc/data/train/val.txt",
+        "data": "/home/stpc/data/train/val_mid.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
         "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced",
         "val_every": 5
@@ -63,10 +63,6 @@
         {
             "alpha": 0.5,
             "gamma": 2.0,
-            "reduction": "mean"
-        },
-        "l1_loss":
-        {
             "reduction": "mean"
         }
     }

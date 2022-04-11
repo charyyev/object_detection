@@ -2,8 +2,7 @@ from core.kitti_dataset import KittiDataset
 from core.models.pixor import PIXOR
 from utils.one_hot import one_hot
 from utils.preprocess import trasform_label2metric
-from core.losses import FocalLoss
-from core.losses import SmoothL1Loss
+from core.losses import FocalLoss, SmoothL1Loss, CustomLoss
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -36,9 +35,9 @@ class TrainAgent:
         lr_decay_at = self.config["train"]["lr_decay_at"]
         self.model = PIXOR(geometry)
         self.model.to(self.device)
-        self.cls_loss_fn = FocalLoss(self.config["loss"]["focal_loss"])
-        self.reg_loss_fn = SmoothL1Loss()
-        
+        #self.cls_loss_fn = FocalLoss(self.config["loss"]["focal_loss"])
+        #self.reg_loss_fn = SmoothL1Loss(self.config["device"])
+        self.loss = CustomLoss(self.config["loss"]["focal_loss"], self.config["device"])
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=lr_decay_at, gamma=0.1)
 
@@ -55,9 +54,10 @@ class TrainAgent:
             self.optimizer.zero_grad()
 
             pred = self.model(voxel)
-            cls = self.cls_loss_fn(pred["cls_map"], cls_label)
-            reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
-            loss = cls + 3 * reg
+            #cls = self.cls_loss_fn(pred["cls_map"], cls_label)
+            #reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
+            #loss = cls + reg
+            loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label})
 
             loss.backward()
             self.optimizer.step()
@@ -82,7 +82,14 @@ class TrainAgent:
         self.make_experiments_dirs()
         self.writer = SummaryWriter(log_dir = self.runs_dir)
 
-        for epoch in range(self.config["train"]["epochs"]):
+        start_epoch = 1
+        if self.config["resume_training"]:
+            model_path = os.path.join(self.checkpoints_dir, str(self.config["resume_from"]) + "epoch")
+            self.model.load_state_dict(torch.load(model_path, map_location=self.config["device"]))
+            start_epoch = self.config["resume_from"]
+            print("successfully loaded model starting from " + str(self.config["resume_from"]) + " epoch") 
+        
+        for epoch in range(start_epoch, self.config["train"]["epochs"]):
             self.train_one_epoch(epoch)
 
             if epoch % self.config["train"]["save_every"] == 0:

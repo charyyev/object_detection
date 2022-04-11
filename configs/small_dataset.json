@@ -1,7 +1,7 @@
 {
     "model": "pixor",
-    "date": "08-04-2022",
-    "ver": 3,
+    "date": "11-04-2022",
+    "ver": 2,
     "note": "small",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
@@ -61,10 +61,6 @@
         {
             "alpha": 0.5,
             "gamma": 2.0,
-            "reduction": "mean"
-        },
-        "l1_loss":
-        {
             "reduction": "mean"
         }
     }

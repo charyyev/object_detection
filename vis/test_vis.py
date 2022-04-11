@@ -26,6 +26,7 @@ class Vis():
         self.model.eval()
         self.geom = geom
         self.index = 0
+        self.iter = iter(self.data_loader)
         self.canvas = SceneCanvas(keys='interactive',
                                 show=True,
                                 size=(1600, 900))
@@ -199,7 +200,7 @@ class Vis():
         if self.use_current_data:
             data = self.current_data
         else:
-            data = next(iter(self.data_loader))
+            data = next(self.iter)
             self.current_data = data
         voxel = data["voxel"]
         pred = self.model(voxel)
@@ -282,13 +283,13 @@ if __name__ == "__main__":
 
     with open("/home/stpc/proj/object_detection/configs/overfit.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_small_08-04-2022_3/checkpoints/495epoch"
+    model_path = "/home/stpc/experiments/pixor_small_11-04-2022_2/checkpoints/495epoch"
 
     pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
     data_file = "/home/stpc/data/train/train_small.txt"
     dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], train = False)
-    data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
+    data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
     model = PIXOR(config["data"]["kitti"]["geometry"])
     model.load_state_dict(torch.load(model_path, map_location=config["device"]))

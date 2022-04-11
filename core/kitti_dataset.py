@@ -4,7 +4,8 @@ import torch
 import os
 import matplotlib.pyplot as plt
 
-from utils.preprocess import transform_metric2label, trasform_label2metric, get_points_in_a_rotated_box, voxel_to_img
+from utils.preprocess import trasform_label2metric, get_points_in_a_rotated_box
+from utils.transform import Random_Rotation, Random_Scaling
 
 
 class KittiDataset(Dataset):

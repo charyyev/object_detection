@@ -69,35 +69,70 @@ class FocalLoss(nn.Module):
 
 
 class SmoothL1Loss(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, device) -> None:
         super().__init__()
+        self.device = device
 
     def forward(self, input: torch.Tensor, target: torch.Tensor, cls_target: torch.Tensor) -> torch.Tensor:
-        mask = torch.zeros((cls_target.shape))
-        mask = mask.to("cuda:0")
-        #print(input.get_device())
+        mask = torch.zeros((cls_target.shape), dtype = torch.int16)
+        mask = mask.to(self.device)
+        
         mask[cls_target > 0] = 1
+        num_pixels = torch.sum(mask)
         mask = torch.unsqueeze(mask, 1).repeat(1, input.shape[1], 1, 1)
-        # print(mask.shape)
-        # print(input.shape)
-        # print(target.shape)
-        #mask.to(input.get_device())
-        loc_loss = F.smooth_l1_loss(input * mask, target * mask, reduction='mean') 
-
+        #loc_loss = F.smooth_l1_loss(input * mask, target * mask, reduction='sum') / num_pixels
+        if num_pixels <= 0:
+            return torch.tensor([0]).to(self.device)
+        loc_loss = F.smooth_l1_loss(input[mask == 1], target[mask == 1], reduction='mean')
         return loc_loss
 
 
+class CustomLoss(nn.Module):
+    def __init__(self, config, device) -> None:
+        super().__init__()
+        self.alpha: float = config["alpha"]
+        self.gamma: float = config["gamma"]
+        self.reduction: str = config["reduction"]
+        self.device = device
 
+    def forward(self, pred, target):
+        cls_pred = pred["cls_map"]
+        reg_pred = pred["reg_map"]
+        cls_target = target["cls_map"]
+        reg_target = target["reg_map"]
+
+        fc_loss = focal_loss(cls_pred, cls_target, self.alpha, self.gamma, self.reduction)
+
+        mask = torch.zeros((cls_target.shape), dtype = torch.int16)
+        mask = mask.to(self.device)
+        
+        mask[cls_target > 0] = 1
+        num_pixels = torch.sum(mask)
+        mask = torch.unsqueeze(mask, 1).repeat(1, reg_pred.shape[1], 1, 1)
+        
+        if num_pixels <= 0:
+            loss = fc_loss
+            loc_loss = torch.tensor([0])
+        else:
+            loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
+            loss = fc_loss + loc_loss
+        return loss, fc_loss, loc_loss
 
 if __name__ == "__main__":
-    loss = FocalLoss(alpha=0.5, gamma=2.0, reduction="mean")
-    x = torch.zeros((1, 3, 200, 175))
-    y = torch.zeros((1, 200, 175), dtype=torch.int64)
+    input = torch.zeros((3, 2, 2))
+    target = torch.ones((3, 2, 2)) * 2
+    loss = F.smooth_l1_loss(input, target, reduction = "none")
+    print(loss)
 
-    x[0][0][:, :] = 20
-    print(x)
 
-    print(loss(x, y))
+    # loss = FocalLoss(alpha=0.5, gamma=2.0, reduction="mean")
+    # x = torch.zeros((1, 3, 200, 175))
+    # y = torch.zeros((1, 200, 175), dtype=torch.int64)
+
+    # x[0][0][:, :] = 20
+    # print(x)
+
+    # print(loss(x, y))
 
     # for i in range(200):
     #     for j in range(175):
