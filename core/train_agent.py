@@ -21,10 +21,11 @@ class TrainAgent:
 
     def prepare_loaders(self):
         config = self.config["data"]["kitti"]
-        train_dataset = KittiDataset(self.config["train"]["pointcloud"], self.config["train"]["label"], self.config["train"]["data"], config)
+        aug_config = self.config["augmentation"]
+        train_dataset = KittiDataset(self.config["train"]["pointcloud"], self.config["train"]["label"], self.config["train"]["data"], config, aug_config, "train")
         self.train_loader = DataLoader(train_dataset, shuffle=True, batch_size=self.config["train"]["batch_size"])
 
-        val_dataset = KittiDataset(self.config["val"]["pointcloud"], self.config["val"]["label"], self.config["val"]["data"], config)
+        val_dataset = KittiDataset(self.config["val"]["pointcloud"], self.config["val"]["label"], self.config["val"]["data"], config, aug_config, "sth")
         self.val_loader = DataLoader(val_dataset, shuffle=True, batch_size=self.config["val"]["batch_size"])
 
     def build_model(self):
@@ -62,8 +63,8 @@ class TrainAgent:
             loss.backward()
             self.optimizer.step()
 
-            cls_loss += cls.item()
-            reg_loss += reg.item()
+            cls_loss += cls
+            reg_loss += reg
             train_loss += loss.item()
 
         self.writer.add_scalar("cls_loss/train", cls_loss / len(self.train_loader), epoch)
@@ -115,12 +116,13 @@ class TrainAgent:
                 reg_label = data["reg_map"].to(self.device)
 
                 pred = self.model(voxel)
-                cls = self.cls_loss_fn(pred["cls_map"], cls_label)
-                reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
-                loss = cls + reg
+                #cls = self.cls_loss_fn(pred["cls_map"], cls_label)
+                #reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
+                #loss = cls + reg
+                loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label})
 
-                cls_loss += cls.item()
-                reg_loss += reg.item()
+                cls_loss += cls
+                reg_loss += reg
                 val_loss += loss.item()
 
         self.model.train()

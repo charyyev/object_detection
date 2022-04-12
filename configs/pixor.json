@@ -1,6 +1,6 @@
 {
     "model": "pixor",
-    "date": "08-04-2022",
+    "date": "12-04-2022",
     "ver": 1,
     "note": "all",
     "device": "cuda:0",
@@ -64,10 +64,28 @@
             "alpha": 0.5,
             "gamma": 2.0,
             "reduction": "mean"
-        },
-        "l1_loss":
+        }
+    },
+    "augmentation":
+    {
+        "p": 0.5,
+        "rotation":
         {
-            "reduction": "mean"
+            "use": true,
+            "limit_angle": 20,
+            "p": 1
+        },
+        "scaling":
+        {
+            "use": true,
+            "range": [0.95, 1.05],
+            "p": 1
+        },
+        "translation":
+        {
+            "use": true,
+            "scale": 0.4,
+            "p": 1
         }
     }
 

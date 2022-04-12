@@ -9,8 +9,8 @@ def center_to_corner_box3d(boxes_center):
 
     for i in range(N):
         box = boxes_center[i]
-        translation = box[0:3]
-        size = box[3:6]
+        translation = box[3:6]
+        size = box[0:3]
         rotation = [0, 0, box[-1]]
 
         h, w, l = size[0], size[1], size[2]
@@ -18,7 +18,8 @@ def center_to_corner_box3d(boxes_center):
             [-l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2], \
             [w / 2, -w / 2, -w / 2, w / 2, w / 2, -w / 2, -w / 2, w / 2], \
             [0, 0, 0, 0, h, h, h, h]])
-
+        
+ 
         # re-create 3D bounding box in velodyne coordinate system
         yaw = rotation[2]
         rotMat = np.array([
@@ -32,44 +33,38 @@ def center_to_corner_box3d(boxes_center):
 
     return ret
 
-def corner_to_center_box3d(boxes_corner, coordinate='camera'):
-    # (N, 8, 3) -> (N, 7) x,y,z,h,w,l,ry/z
+def corner_to_center_box3d(boxes_corner):
+    # (N, 8, 3) -> (N, 7) 
     ret = []
     for roi in boxes_corner:
         roi = np.array(roi)
-        h = abs(np.sum(roi[:4, 1] - roi[4:, 1]) / 4)
-        w = np.sum(
-            np.sqrt(np.sum((roi[0, [0, 2]] - roi[3, [0, 2]]) ** 2)) +
-            np.sqrt(np.sum((roi[1, [0, 2]] - roi[2, [0, 2]]) ** 2)) +
-            np.sqrt(np.sum((roi[4, [0, 2]] - roi[7, [0, 2]]) ** 2)) +
-            np.sqrt(np.sum((roi[5, [0, 2]] - roi[6, [0, 2]]) ** 2))
-        ) / 4
+        h = abs(np.sum(roi[:4, 2] - roi[4:, 2]) / 4)
+
         l = np.sum(
-            np.sqrt(np.sum((roi[0, [0, 2]] - roi[1, [0, 2]]) ** 2)) +
-            np.sqrt(np.sum((roi[2, [0, 2]] - roi[3, [0, 2]]) ** 2)) +
-            np.sqrt(np.sum((roi[4, [0, 2]] - roi[5, [0, 2]]) ** 2)) +
-            np.sqrt(np.sum((roi[6, [0, 2]] - roi[7, [0, 2]]) ** 2))
+            np.sqrt(np.sum((roi[0, [0, 1]] - roi[3, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[1, [0, 1]] - roi[2, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[4, [0, 1]] - roi[7, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[5, [0, 1]] - roi[6, [0, 1]]) ** 2))
+        ) / 4
+        w = np.sum(
+            np.sqrt(np.sum((roi[0, [0, 1]] - roi[1, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[2, [0, 1]] - roi[3, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[4, [0, 1]] - roi[5, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[6, [0, 1]] - roi[7, [0, 1]]) ** 2))
         ) / 4
         x = np.sum(roi[:, 0], axis=0) / 8
-        y = np.sum(roi[0:4, 1], axis=0) / 4
-        z = np.sum(roi[:, 2], axis=0) / 8
-        ry = np.sum(
-            math.atan2(roi[2, 0] - roi[1, 0], roi[2, 2] - roi[1, 2]) +
-            math.atan2(roi[6, 0] - roi[5, 0], roi[6, 2] - roi[5, 2]) +
-            math.atan2(roi[3, 0] - roi[0, 0], roi[3, 2] - roi[0, 2]) +
-            math.atan2(roi[7, 0] - roi[4, 0], roi[7, 2] - roi[4, 2]) +
-            math.atan2(roi[0, 2] - roi[1, 2], roi[1, 0] - roi[0, 0]) +
-            math.atan2(roi[4, 2] - roi[5, 2], roi[5, 0] - roi[4, 0]) +
-            math.atan2(roi[3, 2] - roi[2, 2], roi[2, 0] - roi[3, 0]) +
-            math.atan2(roi[7, 2] - roi[6, 2], roi[6, 0] - roi[7, 0])
-        ) / 8
-        if w > l:
-            w, l = l, w
-            ry = ry - np.pi / 2
-        elif l > w:
-            l, w = w, l
-            ry = ry - np.pi / 2
-        ret.append([x, y, z, h, w, l, ry])
+        y = np.sum(roi[:, 1], axis=0) / 8
+        z = np.sum(roi[0:4, 2], axis=0) / 4
+        rz = np.sum(
+            math.atan2(roi[2, 0] - roi[1, 0], -roi[2, 1] + roi[1, 1]) +
+            math.atan2(roi[6, 0] - roi[5, 0], -roi[6, 1] + roi[5, 1]) +
+            math.atan2(roi[3, 0] - roi[0, 0], -roi[3, 1] + roi[0, 1]) +
+            math.atan2(roi[7, 0] - roi[4, 0], -roi[7, 1] + roi[4, 1]) 
+
+        ) / 4
+       
+        rz = rz - np.pi / 2
+        ret.append([h, w, l, x, y, z, rz])
 
     return np.array(ret)
 
@@ -122,9 +117,9 @@ def point_transform(points, tx, ty, tz, rx=0, ry=0, rz=0):
 
 def box_transform(boxes, tx, ty, tz, r=0):
     # Input:
-    #   boxes: (N, 7) x y z h w l rz/y
+    #   boxes: (N, 7) h w l x y z rz/y
     # Output:
-    #   boxes: (N, 7) x y z h w l rz/y
+    #   boxes: (N, 7) h w l x y z rz/y
     boxes_corner = center_to_corner_box3d(boxes)  # (N, 8, 3)
     for idx in range(len(boxes_corner)):
         boxes_corner[idx] = point_transform(
@@ -162,7 +157,7 @@ class OneOf(object):
         self.p = p
 
     def __call__(self, lidar, labels):
-        if np.random.random() <= self.p:
+        if np.random.random() <= self.p and len(self.transforms) > 0:
             choice = np.random.randint(low=0, high=len(self.transforms))
             lidar, labels = self.transforms[choice](lidar, labels)
 
@@ -176,13 +171,13 @@ class Random_Rotation(object):
 
     def __call__(self, lidar, labels):
         """
-        :param labels: # (N', 7) x, y, z, h, w, l, r
+        :param labels: # (N', 7) h, w, l, x, y, z,  r
         :return:
         """
         if np.random.random() <= self.p:
             angle = np.random.uniform(-self.limit_angle, self.limit_angle)
             lidar[:, 0:3] = point_transform(lidar[:, 0:3], 0, 0, 0, rz=angle)
-            labels = box_transform(labels, 0, 0, 0, r=angle, coordinate='lidar')
+            labels = box_transform(labels, 0, 0, 0, r=angle)
 
         return lidar, labels
 
@@ -194,10 +189,37 @@ class Random_Scaling(object):
 
     def __call__(self, lidar, labels):
         """
-        :param labels: # (N', 7) x, y, z, h, w, l, r
+        :param labels: # (N', 7) h, w, l, x, y, z,  r
         :return:
         """
         if np.random.random() <= self.p:
             factor = np.random.uniform(self.scaling_range[0], self.scaling_range[0])
             lidar[:, 0:3] = lidar[:, 0:3] * factor
             labels[:, 0:6] = labels[:, 0:6] * factor
+
+        return lidar, labels
+
+
+class Random_Translation(object):
+    def __init__(self, scale = 0.1, p = 0.5):
+        self.scale = scale
+        self.p = p
+
+    def __call__(self, lidar, labels):
+        """
+        :param labels: # (N', 7) h, w, l, x, y, z,  r
+        :return:
+        """
+        if np.random.random() <= self.p:
+            dx = np.random.normal(loc = 0.0, scale = self.scale)
+            dy = np.random.normal(loc = 0.0, scale = self.scale)
+            dz = np.random.normal(loc = 0.0, scale = self.scale)
+
+            lidar[:, 0] += dx
+            lidar[:, 1] += dy
+            lidar[:, 2] += dz
+            labels[:, 3] +=dx
+            labels[:, 4] +=dy
+            labels[:, 5] +=dz
+
+        return lidar, labels

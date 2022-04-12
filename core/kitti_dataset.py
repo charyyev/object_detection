@@ -5,11 +5,11 @@ import os
 import matplotlib.pyplot as plt
 
 from utils.preprocess import trasform_label2metric, get_points_in_a_rotated_box
-from utils.transform import Random_Rotation, Random_Scaling
+from utils.transform import Random_Rotation, Random_Scaling, OneOf, Random_Translation
 
 
 class KittiDataset(Dataset):
-    def __init__(self, pointcloud_folder, label_folder, data_file, config, train = True) -> None:
+    def __init__(self, pointcloud_folder, label_folder, data_file, config, aug_config, task = "train") -> None:
         self.pointcloud_folder = pointcloud_folder
         self.label_folder = label_folder
         self.data_file = data_file
@@ -18,7 +18,9 @@ class KittiDataset(Dataset):
 
         self.geometry = config["geometry"]
         self.config = config
-        self.train = train
+        self.task = task
+        self.transforms = self.get_transforms(aug_config)
+        self.augment = OneOf(self.transforms, aug_config["p"])
        
 
     def __len__(self):
@@ -28,26 +30,43 @@ class KittiDataset(Dataset):
         file = '{}.bin'.format(self.data_list[idx])
         lidar_path = os.path.join(self.pointcloud_folder, file)
         points = self.read_points(lidar_path)
+
+        if self.task == "test":
+            scan = self.voxelize(points)
+            scan = torch.from_numpy(scan)
+            scan = scan.permute(2, 0, 1)
+            return {"voxel": scan,
+                    "points": points
+                }
+
+        boxes = self.get_boxes(idx)
+
+        if self.task == "train":
+            points, boxes[:, 1:] = self.augment(points, boxes[:, 1:8])
+
         scan = self.voxelize(points)
         scan = torch.from_numpy(scan)
         scan = scan.permute(2, 0, 1)
-        reg_map, cls_map = self.get_label(idx)
+        reg_map, cls_map = self.get_label(boxes)
         reg_map = torch.from_numpy(reg_map).permute(2, 0, 1)
-        
-        if self.train:
+
+        if self.task == "val":
+            class_list, boxes = self.read_bbox(boxes)
+    
             return {"voxel": scan, 
                     "reg_map": reg_map,
-                    "cls_map": cls_map
-                    }
+                    "cls_map": cls_map,
+                    "cls_list": class_list,
+                    "points": points,
+                    "boxes": boxes,
+                }   
 
-        class_list, boxes = self.read_bbox(idx)
         return {"voxel": scan, 
                 "reg_map": reg_map,
-                "cls_map": cls_map,
-                "cls_list": class_list,
-                "points": points,
-                "boxes": boxes,
-                }       
+                "cls_map": cls_map
+            }
+
+            
 
     def read_points(self, lidar_path):
         return np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 4)
@@ -67,17 +86,19 @@ class KittiDataset(Dataset):
         y_size = int((y_max - y_min) / y_res)
         z_size = int((z_max - z_min) / z_res)
 
+        eps = 0.001
+
         #clip points
-        x_indexes = np.logical_and(points[:, 0] > x_min, points[:, 0] < x_max)
-        y_indexes = np.logical_and(points[:, 1] > y_min, points[:, 1] < y_max)
-        z_indexes = np.logical_and(points[:, 2] > z_min, points[:, 2] < z_max)
+        x_indexes = np.logical_and(points[:, 0] > x_min + eps, points[:, 0] < x_max - eps)
+        y_indexes = np.logical_and(points[:, 1] > y_min + eps, points[:, 1] < y_max - eps)
+        z_indexes = np.logical_and(points[:, 2] > z_min + eps, points[:, 2] < z_max - eps)
         pts = points[np.logical_and(np.logical_and(x_indexes, y_indexes), z_indexes)]
 
         occupancy_mask = np.zeros((pts.shape[0], 3), dtype = np.int32)
         voxels = np.zeros((x_size, y_size, z_size), dtype = np.float32)
-        occupancy_mask[:, 0] = (pts[:, 0] - x_min) / x_res
-        occupancy_mask[:, 1] = (pts[:, 1] - y_min) / y_res
-        occupancy_mask[:, 2] = (pts[:, 2] - z_min) / z_res
+        occupancy_mask[:, 0] = (pts[:, 0] - x_min) // x_res
+        occupancy_mask[:, 1] = (pts[:, 1] - y_min) // y_res
+        occupancy_mask[:, 2] = (pts[:, 2] - z_min) // z_res
 
         idxs = np.array([occupancy_mask[:, 0].reshape(-1), occupancy_mask[:, 1].reshape(-1), occupancy_mask[:, 2].reshape( -1)])
 
@@ -85,19 +106,18 @@ class KittiDataset(Dataset):
         return np.swapaxes(voxels, 0, 1)
 
 
-    def get_label(self, idx):
+    def get_boxes(self, idx):
         '''
         :param i: the ith velodyne scan in the train/val set
-        :return: label map: <--- This is the learning target
-                a tensor of shape 800 * 700 * 7 representing the expected output
+        : return boxes of shape N:8
 
         '''
 
         f_name = '{}.txt'.format(self.data_list[idx])
         label_path = os.path.join(self.label_folder, f_name)
         object_list = self.config["objects"]
-        reg_map = np.zeros(self.geometry['label_shape'], dtype=np.float32)
-        cls_map = np.zeros((self.geometry['label_shape'][0], self.geometry['label_shape'][1]), dtype = np.int64)
+        boxes = []
+
         with open(label_path, 'r') as f:
             lines = f.readlines() # get rid of \n symbol
             for line in lines:
@@ -107,10 +127,27 @@ class KittiDataset(Dataset):
                 if name in list(object_list.keys()):
                     bbox.append(object_list[name])
                     bbox.extend([float(e) for e in entry[1:]])
-                    corners, reg_target = self.get_corners(bbox)
-                    self.update_label_map(reg_map, cls_map, corners, reg_target, object_list[name])
+                    boxes.append(bbox)
+
+        return np.array(boxes)
+
+    def get_label(self, boxes):
+        '''
+        :param boxes: numpy array of shape N:8
+        :return: label map: <--- This is the learning target
+                a tensor of shape 200 * 175 * 6 representing the expected output
+        '''
+        reg_map = np.zeros(self.geometry['label_shape'], dtype=np.float32)
+        cls_map = np.zeros((self.geometry['label_shape'][0], self.geometry['label_shape'][1]), dtype = np.int64)
+        for i in range(boxes.shape[0]):
+            box = boxes[i]
+            corners, reg_target = self.get_corners(box)
+            self.update_label_map(reg_map, cls_map, corners, reg_target, box[0])
 
         return reg_map, cls_map
+
+
+
 
     def get_corners(self, bbox):
         h, w, l, x, y, z, yaw = bbox[1:]
@@ -158,26 +195,16 @@ class KittiDataset(Dataset):
 
 
 
-    def read_bbox(self, idx):
-        object_list = self.config["objects"]
-
+    def read_bbox(self, boxes):
         corner_list = []
         class_list = []
-        f_name = '{}.txt'.format(self.data_list[idx])
-        label_path = os.path.join(self.label_folder, f_name)
-        with open(label_path, 'r') as f:
-            lines = f.readlines() # get rid of \n symbol
-            for line in lines:
-                bbox = []
-                entry = line.split(' ')
-                name = entry[0]
-                if name in list(object_list.keys()):
-                    bbox.append(object_list[name])
-                    bbox.extend([float(e) for e in entry[1:]])
-                    class_list.append(object_list[name])
-                    corners = self.get3D_corners(bbox)
-                    corner_list.append(corners)
+        for i in range(boxes.shape[0]):
+            box = boxes[i]
+            class_list.append(box[0])
+            corners = self.get3D_corners(box)
+            corner_list.append(corners)
         return (class_list, corner_list)
+
 
     def get3D_corners(self, bbox):
         h, w, l, x, y, z, yaw = bbox[1:]
@@ -211,6 +238,24 @@ class KittiDataset(Dataset):
 
         rotated_point = np.matmul(rotation_matrix, np.reshape(point, (3, 1)))
         return np.reshape(rotated_point, (1, 3))
+
+    def get_transforms(self, config):
+        transforms = []
+        if config["rotation"]["use"]:
+            limit_angle = config["rotation"]["limit_angle"]
+            p = config["rotation"]["p"]
+            transforms.append(Random_Rotation(limit_angle, p))
+        if config["scaling"]["use"]:
+            range = config["scaling"]["range"]
+            p = config["scaling"]["p"]
+            transforms.append(Random_Scaling(range, p))
+
+        if config["translation"]["use"]:
+            scale = config["translation"]["scale"]
+            p = config["translation"]["p"]
+            transforms.append(Random_Translation(scale, p))
+
+        return transforms
 
     def create_data_list(self):
         data_list = []

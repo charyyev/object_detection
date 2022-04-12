@@ -5,7 +5,7 @@ import vispy
 from vispy.scene import visuals
 from vispy.scene.cameras import TurntableCamera
 from vispy.scene import SceneCanvas
-import time
+import json
 
 from utils.preprocess import voxelize, voxel_to_points
 from core.kitti_dataset import KittiDataset
@@ -83,16 +83,34 @@ class Vis():
                             color=colors)
 
 
+    def get_point_color_using_intensity(self, points):
+        scale_factor = 500
+        scaled_intensity = np.clip(points[:, 3] * scale_factor, 0, 255)
+        scaled_intensity = scaled_intensity.astype(np.uint8)
+        cmap = plt.get_cmap("viridis")
+
+        # Initialize the matplotlib color map
+        sm = plt.cm.ScalarMappable(cmap=cmap)
+
+        # Obtain linear color range
+        color_range = sm.to_rgba(np.linspace(0, 1, 256), bytes=True)[:, 2::-1]
+
+        color_range = color_range.reshape(256, 3).astype(np.float32) / 255.0
+        colors = color_range[scaled_intensity]
+        return colors
+
+
     def update_scan(self):
         data = self.dataset[self.index]
         voxel = data["voxel"].permute(2, 1, 0).numpy()
-        class_list = data["class_list"]
+        class_list = data["cls_list"]
         boxes = data["boxes"]
         cls_map = data["cls_map"]
-        points = voxel_to_points(voxel)
-        
-        #colors = self.get_point_color_using_intensity(points)
-        colors = np.array([0, 1, 0])
+        #points = voxel_to_points(voxel)
+        points = data["points"]
+        #print(boxes)
+        colors = self.get_point_color_using_intensity(points)
+        #colors = np.array([0, 1, 0])
         
         self.canvas.title = str(self.index)
         self.scan_vis.set_data(points[:, :3],
@@ -139,7 +157,10 @@ if __name__ == "__main__":
     label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
     data_file = "/home/stpc/data/train/train.txt"
 
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file)
+    with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
+        config = json.load(f)
+
+    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], config["augmentation"], "val")
     
     vis = Vis(dataset)
     vis.run()

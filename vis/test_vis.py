@@ -281,14 +281,14 @@ if __name__ == "__main__":
         "label_shape": [200, 175, 7]
     }
 
-    with open("/home/stpc/proj/object_detection/configs/overfit.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_small_11-04-2022_2/checkpoints/495epoch"
+    model_path = "/home/stpc/experiments/pixor_small_12-04-2022_3/checkpoints/995epoch"
 
     pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
     data_file = "/home/stpc/data/train/train_small.txt"
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], train = False)
+    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], config["augmentation"], "val")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
     model = PIXOR(config["data"]["kitti"]["geometry"])

@@ -1,10 +1,12 @@
 {
     "model": "pixor",
-    "date": "11-04-2022",
-    "ver": 2,
+    "date": "12-04-2022",
+    "ver": 4,
     "note": "small",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
+    "resume_training": true,
+    "resume_from": 760,
     "data":
     {
         "kitti":
@@ -37,10 +39,10 @@
     {
         "batch_size": 2,
         "learning_rate": 0.02,
-        "epochs": 500,
+        "epochs": 1000,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [2000, 3000],
+        "lr_decay_at": [500, 3000],
         "save_every": 5,
         "data": "/home/stpc/data/train/train_small.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
@@ -53,7 +55,7 @@
         "data": "/home/stpc/data/train/val_small.txt",
         "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
         "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced",
-        "val_every": 5000
+        "val_every": 15
     },
     "loss":
     {
@@ -62,6 +64,28 @@
             "alpha": 0.5,
             "gamma": 2.0,
             "reduction": "mean"
+        }
+    },
+    "augmentation":
+    {
+        "p": 0.5,
+        "rotation":
+        {
+            "use": true,
+            "limit_angle": 20,
+            "p": 1
+        },
+        "scaling":
+        {
+            "use": true,
+            "range": [0.95, 1.05],
+            "p": 1
+        },
+        "translation":
+        {
+            "use": true,
+            "scale": 0.4,
+            "p": 1
         }
     }
 
