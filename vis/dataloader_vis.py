@@ -106,6 +106,7 @@ class Vis():
         class_list = data["cls_list"]
         boxes = data["boxes"]
         cls_map = data["cls_map"]
+        
         #points = voxel_to_points(voxel)
         points = data["points"]
         #print(boxes)
@@ -121,8 +122,6 @@ class Vis():
         self.plot_boxes(class_list, boxes)
 
         self.image.set_data(np.swapaxes(cls_map, 0, 1))
-
-
 
 
     def _key_press(self, event):

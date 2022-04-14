@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 import torch
 import os
 import matplotlib.pyplot as plt
+import math
 
 from utils.preprocess import trasform_label2metric, get_points_in_a_rotated_box
 from utils.transform import Random_Rotation, Random_Scaling, OneOf, Random_Translation
@@ -58,7 +59,7 @@ class KittiDataset(Dataset):
                     "cls_map": cls_map,
                     "cls_list": class_list,
                     "points": points,
-                    "boxes": boxes,
+                    "boxes": boxes
                 }   
 
         return {"voxel": scan, 
@@ -147,8 +148,6 @@ class KittiDataset(Dataset):
         return reg_map, cls_map
 
 
-
-
     def get_corners(self, bbox):
         h, w, l, x, y, z, yaw = bbox[1:]
         
@@ -192,6 +191,32 @@ class KittiDataset(Dataset):
 
             cls_map[label_y, label_x] = cls
             reg_map[label_y, label_x] = actual_reg_target
+
+
+    def sub_sample_mask(self, boxes):
+        mask = np.zeros((self.geometry['label_shape'][0], self.geometry['label_shape'][1]), dtype = np.int64)
+        radii = {1: [5, 2], 2: [5, 8], 3: [5, 8]}
+        for i in range(boxes.shape[0]):
+            box = boxes[i]
+            # convert box center to bev
+            x, y, z = box[4:7] / 4 / 0.1
+            y += self.geometry["label_shape"][0] / 2
+            y, x = x, y
+
+            r_in, r_out = radii[box[0]]
+            x_min = max(0, int(x - r_out))
+            x_max = min(self.geometry["label_shape"][1], int(x + r_out))
+
+            y_min = max(0, int(y - r_out))
+            y_max = min(self.geometry["label_shape"][0], int(y + r_out))
+
+
+            Y, X = np.ogrid[y_min:y_max, x_min:x_max]
+            dist_from_center = np.sqrt((X - x)**2 + (Y-y)**2)
+
+            mask[y_min:y_max, x_min:x_max][dist_from_center <= r_out] = 1
+
+        return mask
 
 
 

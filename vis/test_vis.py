@@ -283,11 +283,11 @@ if __name__ == "__main__":
 
     with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_small_12-04-2022_3/checkpoints/995epoch"
+    model_path = "/home/stpc/experiments/pixor_all_12-04-2022_1/best_checkpoints/349epoch"
 
     pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
-    data_file = "/home/stpc/data/train/train_small.txt"
+    data_file = "/home/stpc/data/train/val.txt"
     dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], config["augmentation"], "val")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 

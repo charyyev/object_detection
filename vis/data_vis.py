@@ -8,9 +8,9 @@ from vispy.scene import SceneCanvas
 
 
 class Vis():
-    def __init__(self, data_folder, label_folder, calib_folder):
+    def __init__(self, data_folder, label_folder):
         self.index = 0
-        self.lidar_paths, self.label_paths, self.calib_paths = self.read_data(data_folder, label_folder, calib_folder)
+        self.lidar_paths, self.label_paths= self.read_data(data_folder, label_folder)
 
         self.canvas = SceneCanvas(keys='interactive',
                                 show=True,
@@ -28,20 +28,17 @@ class Vis():
         self.bbox = vispy.scene.visuals.Line(parent=self.scan_view.scene)
         self.update_scan()
 
-    def read_data(self, data_folder, label_folder, calib_folder):
+    def read_data(self, data_folder, label_folder):
         lidar_files = sorted(os.listdir(data_folder))
         lidar_paths = [os.path.join(data_folder, f) for f in lidar_files]
         label_paths = []
-        calib_paths = []
         for lidar_file in lidar_files:
             label_path = os.path.join(label_folder, lidar_file.replace("bin", "txt"))
-            calib_path = os.path.join(calib_folder, lidar_file.replace("bin", "txt"))
-            calib_paths.append(calib_path)
             if os.path.isfile(label_path):
                 label_paths.append(label_path)
             else:
                 label_paths.append(None)
-        return lidar_paths, label_paths, calib_paths
+        return lidar_paths, label_paths
 
     def read_points(self, lidar_path):
         return np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 4)
@@ -62,10 +59,11 @@ class Vis():
         colors = color_range[scaled_intensity]
         return colors
 
-    def read_bbox(self, label_path, calib_path):
+    def read_bbox(self, label_path):
         #object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
-        object_list = {'car': 1, 'pedestrian':2, 'person_sitting':2, 'cyclist':3}
-        velo_to_cam = self.read_calib(calib_path)
+        object_list = {'car': 1, 'pedestrian':2, 'person_sitting':2, 'bicycle':3}
+        #object_list = {'vehicle.car': 1}
+
         corner_list = []
         class_list = []
         with open(label_path, 'r') as f:
@@ -78,21 +76,15 @@ class Vis():
                     bbox.append(object_list[name])
                     bbox.extend([float(e) for e in entry[1:]])
                     class_list.append(object_list[name])
-                    corners = self.get_corners(bbox, velo_to_cam)
+                    corners = self.get_corners(bbox)
                     corner_list.append(corners)
         return (class_list, corner_list)
 
-    def get_corners(self, bbox, velo_to_cam):
+    def get_corners(self, bbox):
+        h, w, l, x, y, z, yaw = bbox[1:]
+        #yaw = -yaw
+        #yaw = -(yaw + np.pi / 2)
 
-        cam_to_velo = np.linalg.inv(velo_to_cam)
-
-        h, w, l, x, y, z, yaw = bbox[8:15]
-        yaw = -(yaw + np.pi / 2)
-
-        velo_coord = np.matmul(cam_to_velo, np.array([[x], [y], [z], [1]]))
-        x = velo_coord[0][0]
-        y = velo_coord[1][0]
-        z = velo_coord[2][0]
         corners = []
         front = l / 2
         back = -l / 2
@@ -131,6 +123,8 @@ class Vis():
         connect = []
         points = []
         colors = []
+        if len(boxes) == 0:
+            return
        
         for i, box in enumerate(boxes):
             color = np.tile(object_colors[class_list[i]], (8, 1))
@@ -163,23 +157,12 @@ class Vis():
                             connect=connect,
                             color=colors)
 
-    def read_calib(self, calib_path):
-        lines = open(calib_path).readlines()
-        lines = [ line.split()[1:] for line in lines ][:-1]
-
-        Tr_velo_to_cam = np.array(lines[5]).reshape(3,4)
-        Tr_velo_to_cam = np.concatenate(  [ Tr_velo_to_cam, np.array([0,0,0,1]).reshape(1,4)  ]  , 0     )
-
-        Tr_velo_to_cam = Tr_velo_to_cam.astype('float32')
-
-        return Tr_velo_to_cam
 
     def update_scan(self):
         lidar_path = self.lidar_paths[self.index]
         label_path = self.label_paths[self.index]
-        calib_path = self.calib_paths[self.index]
         points = self.read_points(lidar_path)
-        class_list, boxes = self.read_bbox(label_path, calib_path)
+        class_list, boxes = self.read_bbox(label_path)
         
 
         colors = self.get_point_color_using_intensity(points)
@@ -221,9 +204,10 @@ class Vis():
 
 
 if __name__ == "__main__":
-    data_folder = "/home/stpc/data/lyft/train/kitti_format/velodyne/"
-    label_folder = "/home/stpc/data/lyft/train/kitti_format/label_2/"
-    calib_folder = "/home/stpc/data/lyft/train/kitti_format/calib"
+    #data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
+    #label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
+    data_folder = "/home/stpc/clean_data/nuscenes/pointcloud/"
+    label_folder = "/home/stpc/clean_data/nuscenes/label/"
     
-    vis = Vis(data_folder, label_folder, calib_folder)
+    vis = Vis(data_folder, label_folder)
     vis.run()

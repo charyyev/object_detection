@@ -37,7 +37,7 @@ if __name__ == "__main__":
         calib_path = os.path.join(calib_folder, label_file)
         reduced_label_path = os.path.join(save_folder, label_file)
 
-        object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
+        #object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
         velo_to_cam = read_calib(calib_path)
         corner_list = []
         class_list = []
@@ -48,21 +48,21 @@ if __name__ == "__main__":
                 bbox = []
                 entry = line.split(' ')
                 name = entry[0]
-                if name in list(object_list.keys()):
-                    new_entry = name
-                    cam_to_velo = np.linalg.inv(velo_to_cam)
 
-                    vals = [float(e) for e in entry[8:15]]
-                    h, w, l, x, y, z, yaw = vals
-                    yaw = -(yaw + np.pi / 2)
+                new_entry = name
+                cam_to_velo = np.linalg.inv(velo_to_cam)
 
-                    velo_coord = np.matmul(cam_to_velo, np.array([[x], [y], [z], [1]]))
-                    x = velo_coord[0][0]
-                    y = velo_coord[1][0]
-                    z = velo_coord[2][0]
+                vals = [float(e) for e in entry[8:15]]
+                h, w, l, x, y, z, yaw = vals
+                yaw = -(yaw + np.pi / 2)
 
-                    new_entry += " " + str(h) + " " + str(w) + " " + str(l) + " " + str(x) + " " + str(y) + " " + str(z) + " " + str(yaw)
-                    new_entries.append(new_entry)
+                velo_coord = np.matmul(cam_to_velo, np.array([[x], [y], [z], [1]]))
+                x = velo_coord[0][0]
+                y = velo_coord[1][0]
+                z = velo_coord[2][0]
+
+                new_entry += " " + str(h) + " " + str(w) + " " + str(l) + " " + str(x) + " " + str(y) + " " + str(z) + " " + str(yaw)
+                new_entries.append(new_entry)
         
         with open(reduced_label_path, 'w') as f:
             for new_entry in new_entries:
