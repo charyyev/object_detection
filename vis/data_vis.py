@@ -60,8 +60,8 @@ class Vis():
         return colors
 
     def read_bbox(self, label_path):
-        #object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
-        object_list = {'car': 1, 'pedestrian':2, 'person_sitting':2, 'bicycle':3}
+        object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
+        #object_list = {'car': 1, 'pedestrian':2, 'person_sitting':2, 'bicycle':3}
         #object_list = {'vehicle.car': 1}
 
         corner_list = []
@@ -206,8 +206,8 @@ class Vis():
 if __name__ == "__main__":
     #data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
     #label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
-    data_folder = "/home/stpc/clean_data/nuscenes/pointcloud/"
-    label_folder = "/home/stpc/clean_data/nuscenes/label/"
+    data_folder = "/home/stpc/clean_data/kitti/pointcloud/"
+    label_folder = "/home/stpc/clean_data/kitti/label/"
     
     vis = Vis(data_folder, label_folder)
     vis.run()

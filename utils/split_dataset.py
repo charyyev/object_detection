@@ -1,30 +1,45 @@
 import os
 import random
 
-def split(data_folder, save_folder):
-    lidar_files = sorted(os.listdir(data_folder))
-    random.shuffle(lidar_files)
-    train_len = int(0.9 * len(lidar_files))
+def split(datas, percents, save_folder):
+    train_set = []
+    val_set = []
+    for data in datas.keys():
+        lidar_files = sorted(os.listdir(datas[data]))
+        random.shuffle(lidar_files)
+        train_len = int(percents[data] * len(lidar_files) / 100)
+        val_len = train_len // 8
 
-    train_set = lidar_files[:train_len]
-    val_set = lidar_files[train_len:]
+        train_set = lidar_files[:train_len]
+        val_set = lidar_files[train_len: train_len + val_len]
+        test_set = lidar_files[train_len + val_len: train_len + 2 * val_len]
+        write_to_file(os.path.join(save_folder, "train.txt"), train_set, data)
+        write_to_file(os.path.join(save_folder, "val.txt"), val_set, data)
+        write_to_file(os.path.join(save_folder, "test.txt"), test_set, data)
 
-    write_to_file(os.path.join(save_folder, "train.txt"), train_set)
-    write_to_file(os.path.join(save_folder, "val.txt"), val_set)
+    
 
 
 
-
-def write_to_file(filename, dataset):
-    with open(filename, 'w') as f:
+def write_to_file(filename, dataset, datatype):
+    with open(filename, 'a') as f:
         for data in dataset:
-            f.write(data.split(".")[0] + ";" + "kitti")
+            f.write(data.split(".")[0] + ";" + datatype)
             f.write('\n')
     
 
 
 
 if __name__ == "__main__":
-    data_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
-    save_folder = "/home/stpc/data/train"
-    split(data_folder, save_folder)
+    #data_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
+    #save_folder = "/home/stpc/data/train"
+    datas = {"kitti": "/home/stpc/clean_data/kitti/pointcloud",
+             "lyft": "/home/stpc/clean_data/lyft/pointcloud",
+             "nuscenes": "/home/stpc/clean_data/nuscenes/pointcloud"
+    }
+    percents = {"kitti": 15, "lyft": 15, "nuscenes": 15}
+    save_folder = "/home/stpc/clean_data/list"
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
+    split(datas, percents, save_folder)

@@ -2,7 +2,7 @@ import shutil
 import os
 
 if __name__ == "__main__":
-    src_pcl_folder = "/home/stpc/data/kitti/velodyne/training/velodyne"
+    src_pcl_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     src_label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
 
     dst_pcl_folder = "/home/stpc/clean_data/kitti/pointcloud"
