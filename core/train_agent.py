@@ -1,14 +1,10 @@
-from core.kitti_dataset import KittiDataset
+from core.dataset import Dataset
 from core.models.pixor import PIXOR
-from utils.one_hot import one_hot
-from utils.preprocess import trasform_label2metric
-from core.losses import FocalLoss, SmoothL1Loss, CustomLoss
+from core.losses import CustomLoss
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 import torch
-import matplotlib.pyplot as plt
-import numpy as np
 import os
 import time
 
@@ -20,13 +16,13 @@ class TrainAgent:
 
 
     def prepare_loaders(self):
-        config = self.config["data"]["kitti"]
+        config = self.config["data"]
         aug_config = self.config["augmentation"]
-        train_dataset = KittiDataset(self.config["train"]["pointcloud"], self.config["train"]["label"], self.config["train"]["data"], config, aug_config, "train")
-        self.train_loader = DataLoader(train_dataset, shuffle=True, batch_size=self.config["train"]["batch_size"])
+        train_dataset = Dataset( self.config["train"]["data"], config, aug_config, "train")
+        self.train_loader = DataLoader(train_dataset, shuffle=True, batch_size=self.config["train"]["batch_size"], num_workers=2)
 
-        val_dataset = KittiDataset(self.config["val"]["pointcloud"], self.config["val"]["label"], self.config["val"]["data"], config, aug_config, "sth")
-        self.val_loader = DataLoader(val_dataset, shuffle=True, batch_size=self.config["val"]["batch_size"])
+        val_dataset = Dataset(self.config["val"]["data"], config, aug_config, "sth")
+        self.val_loader = DataLoader(val_dataset, shuffle=True, batch_size=self.config["val"]["batch_size"], num_workers=2)
 
     def build_model(self):
         geometry = self.config["data"]["kitti"]["geometry"]
@@ -36,8 +32,6 @@ class TrainAgent:
         lr_decay_at = self.config["train"]["lr_decay_at"]
         self.model = PIXOR(geometry)
         self.model.to(self.device)
-        #self.cls_loss_fn = FocalLoss(self.config["loss"]["focal_loss"])
-        #self.reg_loss_fn = SmoothL1Loss(self.config["device"])
         self.loss = CustomLoss(self.config["loss"]["focal_loss"], self.config["device"])
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=lr_decay_at, gamma=0.1)

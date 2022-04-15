@@ -4,20 +4,19 @@ import torch
 import os
 import matplotlib.pyplot as plt
 import math
+import json
+import time
 
 from utils.preprocess import trasform_label2metric, get_points_in_a_rotated_box
 from utils.transform import Random_Rotation, Random_Scaling, OneOf, Random_Translation
 
 
-class KittiDataset(Dataset):
-    def __init__(self, pointcloud_folder, label_folder, data_file, config, aug_config, task = "train") -> None:
-        self.pointcloud_folder = pointcloud_folder
-        self.label_folder = label_folder
+class Dataset(Dataset):
+    def __init__(self, data_file, config, aug_config, task = "train") -> None:
         self.data_file = data_file
 
         self.create_data_list()
 
-        self.geometry = config["geometry"]
         self.config = config
         self.task = task
         self.transforms = self.get_transforms(aug_config)
@@ -29,15 +28,18 @@ class KittiDataset(Dataset):
 
     def __getitem__(self, idx):
         file = '{}.bin'.format(self.data_list[idx])
-        lidar_path = os.path.join(self.pointcloud_folder, file)
+        data_type = self.data_type_list[idx]
+        pointcloud_folder = os.path.join(self.config[data_type]["location"], "pointcloud")
+        lidar_path = os.path.join(pointcloud_folder, file)
         points = self.read_points(lidar_path)
 
         if self.task == "test":
-            scan = self.voxelize(points)
+            scan = self.voxelize(points, self[data_type]["geometry"])
             scan = torch.from_numpy(scan)
             scan = scan.permute(2, 0, 1)
             return {"voxel": scan,
-                    "points": points
+                    "points": points,
+                    "dtype": data_type
                 }
 
         boxes = self.get_boxes(idx)
@@ -45,10 +47,10 @@ class KittiDataset(Dataset):
         if self.task == "train":
             points, boxes[:, 1:] = self.augment(points, boxes[:, 1:8])
 
-        scan = self.voxelize(points)
+        scan = self.voxelize(points, self.config[data_type]["geometry"])
         scan = torch.from_numpy(scan)
         scan = scan.permute(2, 0, 1)
-        reg_map, cls_map = self.get_label(boxes)
+        reg_map, cls_map = self.get_label(boxes, self.config[data_type]["geometry"])
         reg_map = torch.from_numpy(reg_map).permute(2, 0, 1)
 
         if self.task == "val":
@@ -59,7 +61,8 @@ class KittiDataset(Dataset):
                     "cls_map": cls_map,
                     "cls_list": class_list,
                     "points": points,
-                    "boxes": boxes
+                    "boxes": boxes,
+                    "dtype": data_type
                 }   
 
         return {"voxel": scan, 
@@ -72,16 +75,16 @@ class KittiDataset(Dataset):
     def read_points(self, lidar_path):
         return np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 4)
 
-    def voxelize(self, points):
-        x_min = self.geometry["x_min"]
-        x_max = self.geometry["x_max"]
-        y_min = self.geometry["y_min"]
-        y_max = self.geometry["y_max"]
-        z_min = self.geometry["z_min"]
-        z_max = self.geometry["z_max"]
-        x_res = self.geometry["x_res"]
-        y_res = self.geometry["y_res"]
-        z_res = self.geometry["z_res"]
+    def voxelize(self, points, geometry):
+        x_min = geometry["x_min"]
+        x_max = geometry["x_max"]
+        y_min = geometry["y_min"]
+        y_max = geometry["y_max"]
+        z_min = geometry["z_min"]
+        z_max = geometry["z_max"]
+        x_res = geometry["x_res"]
+        y_res = geometry["y_res"]
+        z_res = geometry["z_res"]
 
         x_size = int((x_max - x_min) / x_res)
         y_size = int((y_max - y_min) / y_res)
@@ -115,8 +118,10 @@ class KittiDataset(Dataset):
         '''
 
         f_name = '{}.txt'.format(self.data_list[idx])
-        label_path = os.path.join(self.label_folder, f_name)
-        object_list = self.config["objects"]
+        data_type = self.data_type_list[idx]
+        label_folder = os.path.join(self.config[data_type]["location"], "label")
+        label_path = os.path.join(label_folder, f_name)
+        object_list = self.config[data_type]["objects"]
         boxes = []
 
         with open(label_path, 'r') as f:
@@ -132,18 +137,18 @@ class KittiDataset(Dataset):
 
         return np.array(boxes)
 
-    def get_label(self, boxes):
+    def get_label(self, boxes, geometry):
         '''
         :param boxes: numpy array of shape N:8
         :return: label map: <--- This is the learning target
                 a tensor of shape 200 * 175 * 6 representing the expected output
         '''
-        reg_map = np.zeros(self.geometry['label_shape'], dtype=np.float32)
-        cls_map = np.zeros((self.geometry['label_shape'][0], self.geometry['label_shape'][1]), dtype = np.int64)
+        reg_map = np.zeros(geometry['label_shape'], dtype=np.float32)
+        cls_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         for i in range(boxes.shape[0]):
             box = boxes[i]
             corners, reg_target = self.get_corners(box)
-            self.update_label_map(reg_map, cls_map, corners, reg_target, box[0])
+            self.update_label_map(reg_map, cls_map, corners, reg_target, box[0], geometry)
 
         return reg_map, cls_map
 
@@ -173,16 +178,18 @@ class KittiDataset(Dataset):
         return bev_corners, reg_target
 
 
-    def update_label_map(self, reg_map, cls_map, bev_corners, reg_target, cls):
-        label_corners = (bev_corners / 4 ) / 0.1
-        label_corners[:, 1] += self.geometry['label_shape'][0] / 2
-
-        points = get_points_in_a_rotated_box(label_corners, self.geometry['label_shape'])
+    def update_label_map(self, reg_map, cls_map, bev_corners, reg_target, cls, geometry):
+        label_corners = np.zeros((4, 2))
+        label_corners[:, 0] = (bev_corners[:, 0] - geometry["x_min"]) / geometry["x_res"]
+        label_corners[:, 1] = (bev_corners[:, 1] - geometry["y_min"]) / geometry["y_res"]
+        label_corners /= 4
+        
+        points = get_points_in_a_rotated_box(label_corners, geometry['label_shape'])
 
         for p in points:
             label_x = p[0]
             label_y = p[1]
-            metric_x, metric_y = trasform_label2metric(np.array(p))
+            metric_x, metric_y = trasform_label2metric(np.array(p), geometry)
             actual_reg_target = np.copy(reg_target)
             actual_reg_target[2] = reg_target[2] - metric_x
             actual_reg_target[3] = reg_target[3] - metric_y
@@ -284,30 +291,36 @@ class KittiDataset(Dataset):
 
     def create_data_list(self):
         data_list = []
+        data_type_list = []
         with open(self.data_file, "r") as f:
             for line in f:
                 line = line.strip()
-                data_list.append(line.split(";")[0])
+                data, data_type = line.split(";")
+                data_list.append(data)
+                data_type_list.append(data_type)
         
         self.data_list = data_list
+        self.data_type_list = data_type_list
 
 
 if __name__ == "__main__":
-    pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
-    label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
-    data_file = "/home/stpc/data/train/train.txt"
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file)
+    data_file = "/home/stpc/clean_data/list/train.txt"
 
-    for data in dataset:
-        label = data["label"]
-        voxel = data["voxel"]
-        #voxel = voxel.permute(1, 2, 0)
-        #print(voxel.shape)
-        #print(torch.sum(voxel, axis = 2))
-        #print(label[:, 0].shape)
-        #imgplot = plt.imshow(label[:, :, 0])
-        #plt.imshow(torch.sum(voxel, axis = 2), cmap="brg", vmin=0, vmax=255)
-        #img = voxel_to_img(voxel)
-        #imgplot = plt.imshow(img)
-       # plt.show()
-        break
+    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
+        config = json.load(f)
+
+    dataset = Dataset(data_file, config["data"], config["augmentation"])
+
+    # for data in dataset:
+    #     label = data["label"]
+    #     voxel = data["voxel"]
+    #     #voxel = voxel.permute(1, 2, 0)
+    #     #print(voxel.shape)
+    #     #print(torch.sum(voxel, axis = 2))
+    #     #print(label[:, 0].shape)
+    #     #imgplot = plt.imshow(label[:, :, 0])
+    #     #plt.imshow(torch.sum(voxel, axis = 2), cmap="brg", vmin=0, vmax=255)
+    #     #img = voxel_to_img(voxel)
+    #     #imgplot = plt.imshow(img)
+    #    # plt.show()
+    #     break

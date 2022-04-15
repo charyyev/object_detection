@@ -36,16 +36,16 @@ def voxelize(points):
     #return voxels
 
 
-def voxel_to_points(voxel):
-    x_min = 0
-    x_max = 70
-    y_min = -40
-    y_max = 40
-    z_min = -2.5
-    z_max = 1
-    x_res = 0.1
-    y_res = 0.1
-    z_res = 0.1
+def voxel_to_points(voxel, geometry):
+    x_min = geometry["x_min"]
+    x_max = geometry["x_max"]
+    y_min = geometry["y_min"]
+    y_max = geometry["y_max"]
+    z_min = geometry["z_min"]
+    z_max = geometry["z_max"]
+    x_res = geometry["x_res"]
+    y_res = geometry["y_res"]
+    z_res = geometry["z_res"]
 
     xs, ys, zs = np.where(voxel.astype(int) == 1)
     points_x = xs + x_res / 2
@@ -58,15 +58,15 @@ def voxel_to_points(voxel):
     #centers = np.array(np.where(voxel.astype(int) == 1)) + np.array([[x_res / 2], [y_res / 2], [z_res / 2]])
     return np.transpose(np.array([points_x, points_y, points_z]))
 
-def trasform_label2metric(label, ratio=4, grid_size=0.1, base_height=100):
+def trasform_label2metric(label, geometry, ratio=4):
     '''
     :param label: numpy array of shape [..., 2] of coordinates in label map space
     :return: numpy array of shape [..., 2] of the same coordinates in metric space
     '''
-
-    metric = np.copy(label)
-    metric[..., 1] -= base_height
-    metric = metric * grid_size * ratio
+    
+    metric = np.copy(label).astype(np.float32)
+    metric[..., 0] = metric[..., 0] * ratio * geometry["x_res"] + geometry["x_min"]
+    metric[..., 1] = metric[..., 1] * ratio * geometry["y_res"] + geometry["y_min"]
 
     return metric
 

@@ -33,8 +33,8 @@ def write_to_file(filename, dataset, datatype):
 if __name__ == "__main__":
     #data_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
     #save_folder = "/home/stpc/data/train"
-    datas = {"kitti": "/home/stpc/clean_data/kitti/pointcloud",
-             "lyft": "/home/stpc/clean_data/lyft/pointcloud",
+    datas = {"lyft": "/home/stpc/clean_data/lyft/pointcloud",
+             "kitti": "/home/stpc/clean_data/kitti/pointcloud",
              "nuscenes": "/home/stpc/clean_data/nuscenes/pointcloud"
     }
     percents = {"kitti": 15, "lyft": 15, "nuscenes": 15}

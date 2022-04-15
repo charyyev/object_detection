@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import json
 import vispy
 from vispy.scene import visuals
 from vispy.scene.cameras import TurntableCamera
@@ -11,15 +12,17 @@ import torch
 
 from utils.preprocess import voxelize, voxel_to_points
 from utils.postprocess import filter_pred
-from core.kitti_dataset import KittiDataset
+from core.dataset import Dataset
 from utils.one_hot import one_hot
 
 
 class Vis():
-    def __init__(self, voxels, boxess):
-        self.voxels = voxels
-        self.boxess = boxess
+    def __init__(self, dataloader, config):
+        self.dataloader = dataloader
+        self.config = config
         self.index = 0
+        self.iter = iter(self.dataloader)
+
         self.canvas = SceneCanvas(keys='interactive',
                                 show=True,
                                 size=(1600, 900))
@@ -73,7 +76,11 @@ class Vis():
 
 
     def plot_boxes(self, class_list, boxes):
-        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
+        object_colors = {1: np.array([1, 0, 0, 1]), 
+                         2: np.array([0, 1, 0, 1]), 
+                         3: np.array([0, 0, 1, 1]),
+                         4: np.array([1, 1, 0, 1]),
+                         5: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -102,10 +109,30 @@ class Vis():
                             color=colors)
 
 
+    def get_point_color_using_intensity(self, points):
+        scale_factor = 500
+        scaled_intensity = np.clip(points[:, 3] * scale_factor, 0, 255)
+        scaled_intensity = scaled_intensity.astype(np.uint8)
+        cmap = plt.get_cmap("viridis")
+
+        # Initialize the matplotlib color map
+        sm = plt.cm.ScalarMappable(cmap=cmap)
+
+        # Obtain linear color range
+        color_range = sm.to_rgba(np.linspace(0, 1, 256), bytes=True)[:, 2::-1]
+
+        color_range = color_range.reshape(256, 3).astype(np.float32) / 255.0
+        colors = color_range[scaled_intensity]
+        return colors
+
     def update_scan(self):
-        voxel = self.voxels[self.index]
-        boxes = self.boxess[self.index]
-        points = voxel_to_points(voxel)
+        data = next(self.iter)
+        #points = voxel_to_points(data["voxel"].squeeze().permute(2, 1, 0).cpu().numpy(), self.config[data["dtype"][0]]["geometry"])
+        points = data["points"].squeeze().cpu().numpy()
+
+        cls_one_hot = one_hot(data["cls_map"], num_classes= 6, device="cpu", dtype=data["cls_map"].dtype)
+        boxes = filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), self.config[data["dtype"][0]])
+
         box_list = []
         class_list = []
 
@@ -115,9 +142,10 @@ class Vis():
             class_list.append(box[0])
         
 
-        colors = np.array([0, 0, 1])
-        
-        self.canvas.title = str(self.index)
+        #colors = np.array([0, 1, 0])
+        colors = self.get_point_color_using_intensity(points)
+
+        self.canvas.title = str(self.index) + ": " + data["dtype"][0]
         self.scan_vis.set_data(points[:, :3],
                             face_color=colors,
                             edge_color=colors,
@@ -128,8 +156,6 @@ class Vis():
 
     def _key_press(self, event):
         if event.key == 'N':
-            if self.index < len(voxels) - 1:
-                self.index += 1
             self.update_scan()
 
         if event.key == 'B':
@@ -154,48 +180,34 @@ class Vis():
 
 
 if __name__ == "__main__":
-    geom = {
-        "L1": -40.0,
-        "L2": 40.0,
-        "W1": 0.0,
-        "W2": 70.0,
-        "H1": -2.5,
-        "H2": 1.0,
-        "input_shape": [800, 700, 35],
-        "label_shape": [200, 175, 7]
-    }
+    data_file = "/home/stpc/clean_data/list/val.txt"
+   # data_file = "/home/stpc/data/train/val.txt"
+    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
+        config = json.load(f)
 
-    pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
-    label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
-    data_file = "/home/stpc/data/train/train.txt"
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file)
-
+    dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
     data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
-
-    voxels = []
-    boxess = []
-    
-    count = 0
-    max_num = 20
-    #net = PIXOR(geom, use_bn=False)
-
-    for data in data_loader:
-        cls_one_hot = one_hot(data["cls_map"], num_classes= 4 , device="cpu", dtype=data["cls_map"].dtype)
-        boxes = filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), geom)
-        voxels.append(torch.squeeze(data["voxel"]).permute(2, 1, 0).numpy())
-        boxess.append(boxes)
-
-        #imgplot = plt.imshow(torch.squeeze(data["cls_map"]).permute(0, 1))
-        #plt.show()
-        #preds = net(data["voxel"])
-        #print(preds["reg_map"].shape)
-        #print(data["reg_map"].shape)
-        count += 1
-        if count >= max_num:
-            break
-
-    vis = Vis(voxels, boxess)
+    vis = Vis(data_loader, config["data"])
     vis.run()
+
+
+    # for data in data_loader:
+    #     cls_one_hot = one_hot(data["cls_map"], num_classes= 4 , device="cpu", dtype=data["cls_map"].dtype)
+    #     boxes = filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), geom)
+    #     voxels.append(torch.squeeze(data["voxel"]).permute(2, 1, 0).numpy())
+    #     boxess.append(boxes)
+
+    #     #imgplot = plt.imshow(torch.squeeze(data["cls_map"]).permute(0, 1))
+    #     #plt.show()
+    #     #preds = net(data["voxel"])
+    #     #print(preds["reg_map"].shape)
+    #     #print(data["reg_map"].shape)
+    #     count += 1
+    #     if count >= max_num:
+    #         break
+
+    # vis = Vis(voxels, boxess)
+    # vis.run()
         
     
     

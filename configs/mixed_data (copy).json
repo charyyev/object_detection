@@ -31,7 +31,10 @@
                 "Car": 1, 
                 "Pedestrian": 2, 
                 "Person_sitting": 2, 
-                "Cyclist": 3
+                "Cyclist": 3,
+                "Van": 4,
+                "Truck": 4,
+                "Tram": 4
             }
 
         },
@@ -56,7 +59,11 @@
             {
                 "car": 1, 
                 "pedestrian": 2, 
-                "bicycle": 3
+                "bicycle": 3,
+                "bus": 4,
+                "truck": 4,
+                "emergency_vehicle": 4,
+                "motorcycle": 5
             }
         },
         "nuscenes":
@@ -80,7 +87,9 @@
             {
                 "car": 1, 
                 "pedestrian": 2, 
-                "bicycle": 3
+                "bicycle": 3,
+                "bus": 4,
+                "motorcycle": 5
             }
         }
     },

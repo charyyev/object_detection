@@ -67,10 +67,11 @@ def non_max_suppression(boxes, scores, threshold):
 
     return np.array(pick, dtype=np.int32)
 
-def filter_pred(reg_pred, cls_pred, geometry):
+def filter_pred(reg_pred, cls_pred, config):
+    geometry = config["geometry"]
     score_threshold = 0.5
-    height = 100
-    grid_size = 0.1
+    #height = 100
+    #grid_size = 0.1
     ratio = 4
     reg_pred = reg_pred[0]
     cls_pred = cls_pred[0]
@@ -89,8 +90,10 @@ def filter_pred(reg_pred, cls_pred, geometry):
     x = np.arange(geometry["label_shape"][1])
     xx, yy = np.meshgrid(x, y)
 
-    center_y = dy + (yy - height) * grid_size * ratio
-    center_x = dx + xx * grid_size * ratio
+    #center_y = dy + (yy - height) * grid_size * ratio
+    #center_x = dx + xx * grid_size * ratio
+    center_y = dy + yy * ratio * geometry["y_res"] + geometry["y_min"]
+    center_x = dx + xx * ratio * geometry["x_res"] + geometry["x_min"]
     l = np.exp(log_l)
     w = np.exp(log_w)
     yaw = np.arctan2(sin_t, cos_t)

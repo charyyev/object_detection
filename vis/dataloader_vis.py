@@ -8,7 +8,7 @@ from vispy.scene import SceneCanvas
 import json
 
 from utils.preprocess import voxelize, voxel_to_points
-from core.kitti_dataset import KittiDataset
+from core.dataset import Dataset
 
 
 class Vis():
@@ -46,11 +46,15 @@ class Vis():
 
 
     def plot_boxes(self, class_list, boxes):
-        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
+        object_colors = {1: np.array([1, 0, 0, 1]), 
+                         2: np.array([0, 1, 0, 1]), 
+                         3: np.array([0, 0, 1, 1]),
+                         4: np.array([1, 1, 0, 1]),
+                         5: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
-       
+
         for i, box in enumerate(boxes):
             color = np.tile(object_colors[class_list[i]], (8, 1))
             corners = np.array(box)
@@ -106,14 +110,14 @@ class Vis():
         class_list = data["cls_list"]
         boxes = data["boxes"]
         cls_map = data["cls_map"]
-        
-        #points = voxel_to_points(voxel)
-        points = data["points"]
+        data_type = data["dtype"]
+        points = voxel_to_points(voxel, dataset.config[data_type]["geometry"])
+        #points = data["points"]
         #print(boxes)
-        colors = self.get_point_color_using_intensity(points)
-        #colors = np.array([0, 1, 0])
+        #colors = self.get_point_color_using_intensity(points)
+        colors = np.array([0, 1, 0])
         
-        self.canvas.title = str(self.index)
+        self.canvas.title = str(self.index) + ": " + data_type
         self.scan_vis.set_data(points[:, :3],
                             face_color=colors,
                             edge_color=colors,
@@ -152,14 +156,12 @@ class Vis():
 
 
 if __name__ == "__main__":
-    pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
-    label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
-    data_file = "/home/stpc/data/train/train.txt"
+    data_file = "/home/stpc/clean_data/list/val.txt"
 
-    with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
         config = json.load(f)
 
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], config["augmentation"], "val")
-    
+    dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
+
     vis = Vis(dataset)
     vis.run()

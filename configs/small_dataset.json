@@ -1,16 +1,17 @@
 {
     "model": "pixor",
-    "date": "12-04-2022",
+    "date": "15-04-2022",
     "ver": 4,
     "note": "small",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": true,
-    "resume_from": 760,
+    "resume_training": false,
+    "resume_from": 180,
     "data":
     {
         "kitti":
         {
+            "location": "/home/stpc/clean_data/kitti",
             "geometry": 
             {
                 "y_min": -40.0,
@@ -44,18 +45,14 @@
         "weight_decay": 0.0001,
         "lr_decay_at": [500, 3000],
         "save_every": 5,
-        "data": "/home/stpc/data/train/train_small.txt",
-        "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
-        "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced"
+        "data": "/home/stpc/data/train/train_small.txt"
         
     },
     "val": 
     {
         "batch_size": 2,
         "data": "/home/stpc/data/train/val_small.txt",
-        "pointcloud": "/home/stpc/data/kitti/velodyne/training_reduced/velodyne",
-        "label": "/home/stpc/data/kitti/label_2/training/label_2_reduced",
-        "val_every": 15
+        "val_every": 10000
     },
     "loss":
     {
@@ -71,19 +68,19 @@
         "p": 0.5,
         "rotation":
         {
-            "use": true,
+            "use": false,
             "limit_angle": 20,
             "p": 1
         },
         "scaling":
         {
-            "use": true,
+            "use": false,
             "range": [0.95, 1.05],
             "p": 1
         },
         "translation":
         {
-            "use": true,
+            "use": false,
             "scale": 0.4,
             "p": 1
         }

@@ -14,17 +14,17 @@ import torch.nn.functional as F
 
 from utils.preprocess import voxelize, voxel_to_points
 from utils.postprocess import filter_pred
-from core.kitti_dataset import KittiDataset
+from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.models.pixor import PIXOR
 
 
 class Vis():
-    def __init__(self, data_loader, model, geom):
+    def __init__(self, data_loader, model, config):
         self.data_loader = data_loader
         self.model = model
         self.model.eval()
-        self.geom = geom
+        self.config = config
         self.index = 0
         self.iter = iter(self.data_loader)
         self.canvas = SceneCanvas(keys='interactive',
@@ -90,7 +90,11 @@ class Vis():
             self.bbox.visible = False
             return
 
-        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
+        object_colors = {1: np.array([1, 0, 0, 1]), 
+                         2: np.array([0, 1, 0, 1]), 
+                         3: np.array([0, 0, 1, 1]),
+                         4: np.array([1, 1, 0, 1]),
+                         5: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -132,7 +136,11 @@ class Vis():
             self.gt_bbox.visible = False
             return
 
-        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
+        object_colors = {1: np.array([1, 0, 0, 1]), 
+                         2: np.array([0, 1, 0, 1]), 
+                         3: np.array([0, 0, 1, 1]),
+                         4: np.array([1, 1, 0, 1]),
+                         5: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -205,7 +213,7 @@ class Vis():
         voxel = data["voxel"]
         pred = self.model(voxel)
         pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
-        boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), pred["cls_map"].detach().cpu().numpy(), self.geom)
+        boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), pred["cls_map"].detach().cpu().numpy(), self.config[data["dtype"][0]])
        
         points = data["points"].squeeze().numpy()
         
@@ -270,31 +278,18 @@ class Vis():
 
 
 if __name__ == "__main__":
-    geom = {
-        "L1": -40.0,
-        "L2": 40.0,
-        "W1": 0.0,
-        "W2": 70.0,
-        "H1": -2.5,
-        "H2": 1.0,
-        "input_shape": [800, 700, 35],
-        "label_shape": [200, 175, 7]
-    }
-
     with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_all_12-04-2022_1/best_checkpoints/349epoch"
+    model_path = "/home/stpc/experiments/pixor_one_15-04-2022_1/checkpoints/125epoch"
 
-    pointcloud_folder = "/home/stpc/data/kitti/velodyne/training_reduced/velodyne"
-    label_folder = "/home/stpc/data/kitti/label_2/training/label_2_reduced"
-    data_file = "/home/stpc/data/train/val.txt"
-    dataset = KittiDataset(pointcloud_folder, label_folder, data_file, config["data"]["kitti"], config["augmentation"], "val")
+    data_file = "/home/stpc/data/train/train_one.txt"
+    dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
     model = PIXOR(config["data"]["kitti"]["geometry"])
     model.load_state_dict(torch.load(model_path, map_location=config["device"]))
 
-    vis = Vis(data_loader, model, geom)
+    vis = Vis(data_loader, model, config["data"])
     vis.run()
 
     # voxels = []
