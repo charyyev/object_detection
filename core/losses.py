@@ -41,8 +41,8 @@ def focal_loss(
 
     # compute the actual focal loss
     weight = torch.pow(-input_soft + 1.0, gamma)
-
-    focal = -alpha * weight * log_input_soft
+    #focal = -alpha * weight * log_input_soft
+    focal = -alpha * log_input_soft
     loss_tmp = torch.einsum('bc...,bc...->b...', (target_one_hot, focal))
 
     if reduction == 'none':
@@ -102,20 +102,22 @@ class CustomLoss(nn.Module):
         reg_target = target["reg_map"]
 
         fc_loss = focal_loss(cls_pred, cls_target, self.alpha, self.gamma, self.reduction)
-
-        mask = torch.zeros((cls_target.shape), dtype = torch.int16)
+      
+        mask = torch.zeros(cls_target.shape, dtype = torch.int16)
         mask = mask.to(self.device)
         
         mask[cls_target > 0] = 1
         num_pixels = torch.sum(mask)
         mask = torch.unsqueeze(mask, 1).repeat(1, reg_pred.shape[1], 1, 1)
-        
+        #loc_loss = F.smooth_l1_loss(reg_pred * mask, reg_target * mask, reduction='mean')
+        #loss = loc_loss + fc_loss
         if num_pixels <= 0:
             loss = fc_loss
             loc_loss = torch.tensor([0])
         else:
             loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
-            loss = fc_loss + loc_loss
+            loss = fc_loss + 2 * loc_loss
+
         return loss, fc_loss.item(), loc_loss.item()
 
 if __name__ == "__main__":

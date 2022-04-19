@@ -127,7 +127,7 @@ def filter_pred(reg_pred, cls_pred, config):
     if corners.shape[0] == 0:
         return np.array([])
     
-    selected_idxs = non_max_suppression(corners, scores, 0.2) 
+    selected_idxs = non_max_suppression(corners, scores, 0.1) 
     boxes = np.stack([cls[selected_idxs], 
                       scores[selected_idxs], 
                       center_x[selected_idxs], 

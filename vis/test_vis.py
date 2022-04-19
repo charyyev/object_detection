@@ -16,6 +16,7 @@ from utils.preprocess import voxelize, voxel_to_points
 from utils.postprocess import filter_pred
 from core.dataset import Dataset
 from utils.one_hot import one_hot
+from core.losses import CustomLoss
 from core.models.pixor import PIXOR
 
 
@@ -47,6 +48,15 @@ class Vis():
         self.use_current_data = False
 
         self.text = Text(parent=self.scan_view.scene, color='white', font_size = 50)
+
+        self.canvas1 = SceneCanvas(keys='interactive',
+                                show=True,
+                                size=(200, 175))
+        self.canvas1.events.key_press.connect(self._key_press)
+        self.canvas1.events.draw.connect(self._draw)
+
+        self.view = self.canvas1.central_widget.add_view()
+        self.image = vispy.scene.visuals.Image(parent=self.view.scene)
 
         self.update_scan()
 
@@ -147,7 +157,7 @@ class Vis():
 
         for i in range(len(boxes)):
             box = boxes[i]
-            if isinstance(class_list[i], int):
+            if isinstance(class_list[i], float):
                 break
             class_list[i] = class_list[i].tolist()[0]
             for j in range(len(box)):
@@ -213,8 +223,10 @@ class Vis():
         voxel = data["voxel"]
         pred = self.model(voxel)
         pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
+
         boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), pred["cls_map"].detach().cpu().numpy(), self.config[data["dtype"][0]])
-       
+        #cls_pred = one_hot(data["cls_map"], num_classes=6, device="cpu", dtype=data["cls_map"].dtype).detach().cpu().numpy()
+        #boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), cls_pred, self.config[data["dtype"][0]])
         points = data["points"].squeeze().numpy()
         
         box_list = []
@@ -241,6 +253,33 @@ class Vis():
             self.plot_boxes(class_list, scores, box_list)
         else:
             self.plot_gt_boxes(data["cls_list"], data["boxes"])
+        
+        cls_pred = pred["cls_map"].squeeze().detach().cpu().numpy()
+        #cls_pred = one_hot(data["cls_map"], num_classes=4, device="cpu", dtype=data["cls_map"].dtype).squeeze().detach().cpu().numpy()
+
+        cls_probs = np.max(cls_pred, axis = 0)
+        cls_ids = np.argmax(cls_pred, axis = 0)
+        cls_map = cls_ids
+        
+
+        color_img = np.zeros((cls_map.shape[0], cls_map.shape[1], 3))
+
+        color_img[:, :, 0][cls_map == 1] = 1
+        color_img[:, :, 1][cls_map == 1] = 0
+        color_img[:, :, 2][cls_map == 1] = 0
+        color_img[:, :, 0][cls_map == 2] = 0
+        color_img[:, :, 1][cls_map == 2] = 1
+        color_img[:, :, 2][cls_map == 2] = 0
+        color_img[:, :, 0][cls_map == 3] = 1
+        color_img[:, :, 1][cls_map == 3] = 1
+        color_img[:, :, 2][cls_map == 3] = 1
+        color_img[:, :, 0][cls_map == 4] = 1
+        color_img[:, :, 1][cls_map == 4] = 1
+        color_img[:, :, 2][cls_map == 4] = 0
+        color_img[:, :, 0][cls_map == 5] = 0
+        color_img[:, :, 1][cls_map == 5] = 1
+        color_img[:, :, 2][cls_map == 5] = 1
+        self.image.set_data(np.swapaxes(color_img, 0, 1))
 
 
     def _key_press(self, event):
@@ -280,40 +319,29 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_one_15-04-2022_1/checkpoints/125epoch"
+    model_path = "/home/stpc/experiments/pixor_small_19-04-2022_5/checkpoints/995epoch"
 
-    data_file = "/home/stpc/data/train/train_one.txt"
+    data_file = "/home/stpc/clean_data/list/train_small.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
     model = PIXOR(config["data"]["kitti"]["geometry"])
-    model.load_state_dict(torch.load(model_path, map_location=config["device"]))
+    #model.to(config['device'])
+    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    #device = config["device"]
+    # loss_fn = CustomLoss(config["loss"]["focal_loss"], "cpu")
+    # for data in data_loader:
+    #     voxel = data["voxel"]
+    #     cls_target = data["cls_map"]
+    #     reg_target = data["reg_map"]
+    #     pred = model(voxel)
+    #     cls_one_hot = one_hot(data["cls_map"], num_classes=4, device="cpu", dtype=data["cls_map"].dtype)
+    #     loss = loss_fn({"cls_map": cls_one_hot, "reg_map": pred["reg_map"]}, {"cls_map": cls_target, "reg_map": reg_target})
+    #     print(loss)
+    #     break
 
     vis = Vis(data_loader, model, config["data"])
     vis.run()
-
-    # voxels = []
-    # boxess = []
-    
-    # count = 0
-    # max_num = 20
-    # #net = PIXOR(geom, use_bn=False)
-
-    # for data in data_loader:
-    #     cls_one_hot = one_hot(data["cls_map"], num_classes= 4 , device="cpu", dtype=data["cls_map"].dtype)
-    #     boxes = filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), geom)
-    #     voxels.append(torch.squeeze(data["voxel"]).permute(2, 1, 0).numpy())
-    #     boxess.append(boxes)
-
-    #     #imgplot = plt.imshow(torch.squeeze(data["cls_map"]).permute(0, 1))
-    #     #plt.show()
-    #     #preds = net(data["voxel"])
-    #     #print(preds["reg_map"].shape)
-    #     #print(data["reg_map"].shape)
-    #     count += 1
-    #     if count >= max_num:
-    #         break
-
 
         
     

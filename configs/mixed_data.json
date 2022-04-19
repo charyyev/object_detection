@@ -1,6 +1,6 @@
 {
     "model": "pixor",
-    "date": "15-04-2022",
+    "date": "19-04-2022",
     "ver": 1,
     "note": "mixed",
     "device": "cuda:0",

@@ -31,6 +31,7 @@ class Dataset(Dataset):
         data_type = self.data_type_list[idx]
         pointcloud_folder = os.path.join(self.config[data_type]["location"], "pointcloud")
         lidar_path = os.path.join(pointcloud_folder, file)
+        #print(lidar_path)
         points = self.read_points(lidar_path)
 
         if self.task == "test":
@@ -44,7 +45,7 @@ class Dataset(Dataset):
 
         boxes = self.get_boxes(idx)
 
-        if self.task == "train":
+        if self.task == "train" and boxes.shape[0] != 0:
             points, boxes[:, 1:] = self.augment(points, boxes[:, 1:8])
 
         scan = self.voxelize(points, self.config[data_type]["geometry"])
