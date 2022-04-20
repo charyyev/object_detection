@@ -67,17 +67,14 @@ def non_max_suppression(boxes, scores, threshold):
 
     return np.array(pick, dtype=np.int32)
 
-def filter_pred(reg_pred, cls_pred, config):
+def filter_pred(reg_pred, cls_pred, config, score_threshold, nms_threshold):
     geometry = config["geometry"]
-    score_threshold = 0.5
-    #height = 100
-    #grid_size = 0.1
+
     ratio = 4
     reg_pred = reg_pred[0]
     cls_pred = cls_pred[0]
     cos_t, sin_t, dx, dy, log_w, log_l = np.split(reg_pred, 6, axis=0)
 
-    #cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
 
     cls_probs = np.max(cls_pred, axis = 0)
     cls_ids = np.argmax(cls_pred, axis = 0)
@@ -90,8 +87,7 @@ def filter_pred(reg_pred, cls_pred, config):
     x = np.arange(geometry["label_shape"][1])
     xx, yy = np.meshgrid(x, y)
 
-    #center_y = dy + (yy - height) * grid_size * ratio
-    #center_x = dx + xx * grid_size * ratio
+
     center_y = dy + yy * ratio * geometry["y_res"] + geometry["y_min"]
     center_x = dx + xx * ratio * geometry["x_res"] + geometry["x_min"]
     l = np.exp(log_l)
@@ -127,7 +123,7 @@ def filter_pred(reg_pred, cls_pred, config):
     if corners.shape[0] == 0:
         return np.array([])
     
-    selected_idxs = non_max_suppression(corners, scores, 0.1) 
+    selected_idxs = non_max_suppression(corners, scores, nms_threshold) 
     boxes = np.stack([cls[selected_idxs], 
                       scores[selected_idxs], 
                       center_x[selected_idxs], 

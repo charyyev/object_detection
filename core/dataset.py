@@ -29,13 +29,14 @@ class Dataset(Dataset):
     def __getitem__(self, idx):
         file = '{}.bin'.format(self.data_list[idx])
         data_type = self.data_type_list[idx]
+
         pointcloud_folder = os.path.join(self.config[data_type]["location"], "pointcloud")
         lidar_path = os.path.join(pointcloud_folder, file)
         #print(lidar_path)
         points = self.read_points(lidar_path)
 
         if self.task == "test":
-            scan = self.voxelize(points, self[data_type]["geometry"])
+            scan = self.voxelize(points, self.config[data_type]["geometry"])
             scan = torch.from_numpy(scan)
             scan = scan.permute(2, 0, 1)
             return {"voxel": scan,

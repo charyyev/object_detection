@@ -116,7 +116,7 @@ class CustomLoss(nn.Module):
             loc_loss = torch.tensor([0])
         else:
             loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
-            loss = fc_loss + 2 * loc_loss
+            loss = fc_loss + loc_loss
 
         return loss, fc_loss.item(), loc_loss.item()
 

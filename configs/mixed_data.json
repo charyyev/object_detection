@@ -5,10 +5,35 @@
     "note": "mixed",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": false,
-    "resume_from": 180,
+    "resume_training": true,
+    "resume_from": 10,
     "data":
     {
+        "custom":
+        {
+            "location": "/home/stpc/clean_data/custom",
+            "geometry": 
+            {
+                "y_min": -40.0,
+                "y_max": 40.0,
+                "x_min": -35.0,
+                "x_max": 35.0,
+                "z_min": -2.5,
+                "z_max": 1.0,
+                "x_res": 0.1,
+                "y_res": 0.1,
+                "z_res": 0.1,
+                "input_shape": [800, 700, 35],
+                "label_shape": [200, 175, 6]
+            },
+            "objects":
+            {
+                "Car": 1, 
+                "Pedestrian": 2, 
+                "Person_sitting": 2, 
+                "Cyclist": 3
+            }
+        },
         "kitti":
         {
             "location": "/home/stpc/clean_data/kitti",
