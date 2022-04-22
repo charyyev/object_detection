@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import json
 import matplotlib.pyplot as plt
@@ -13,11 +14,11 @@ import torch
 import torch.nn.functional as F
 
 from utils.preprocess import voxelize, voxel_to_points
-from utils.postprocess import filter_pred
+from utils.postprocess import non_max_suppression
 from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
-from core.models.pixor import PIXOR
+from core.models.pixor_torchscript import PIXOR
 
 
 class Vis():
@@ -221,23 +222,31 @@ class Vis():
         else:
             data = next(self.iter)
             self.current_data = data
-        voxel = data["voxel"]
-        pred = self.model(voxel)
-        pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
-        reg_pred = pred["reg_map"].detach().cpu().numpy()
-        cls_pred = pred["cls_map"].detach().cpu().numpy()
-        boxes = filter_pred(reg_pred, cls_pred, self.config[data["dtype"][0]], score_threshold=0.1, nms_threshold=0.8)
-        #cls_pred = one_hot(data["cls_map"], num_classes=6, device="cpu", dtype=data["cls_map"].dtype).detach().cpu().numpy()
-        #boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), cls_pred, self.config[data["dtype"][0]])
-        points = data["points"].squeeze().numpy()
 
-        #points = voxel_to_points(voxel.squeeze().permute(2, 1, 0).numpy(), self.config[data["dtype"][0]]["geometry"])
+        geometry = self.config[data["dtype"][0]]["geometry"]
+        x_min = geometry["x_min"]
+        y_min = geometry["y_min"]
+        x_res = geometry["x_res"]
+        y_res = geometry["y_res"]
+        
+        voxel = data["voxel"]
+        start = time.time()
+        pred = self.model(voxel, x_min, y_min, x_res, y_res, 0.1)
+        print("time it took: ", time.time() - start)
+        corners = pred["corners"].detach().cpu().numpy()
+        boxes = pred["boxes"].detach().cpu().numpy()
+
+        selected_idxs = non_max_suppression(corners, boxes[:, 0], 0.1)
+        
+        selected_boxes = boxes[selected_idxs]
+
+        points = data["points"].squeeze().numpy()
 
         box_list = []
         class_list = []
         scores = []
-        for i in range(boxes.shape[0]):
-            box = boxes[i]
+        for i in range(selected_boxes.shape[0]):
+            box = selected_boxes[i]
             box_list.append(self.get_corners(box))
             class_list.append(box[0])
             scores.append(box[1])
@@ -258,32 +267,7 @@ class Vis():
         else:
             self.plot_gt_boxes(data["cls_list"], data["boxes"])
         
-        cls_pred = pred["cls_map"].squeeze().detach().cpu().numpy()
-        #cls_pred = one_hot(data["cls_map"], num_classes=4, device="cpu", dtype=data["cls_map"].dtype).squeeze().detach().cpu().numpy()
-
-        cls_probs = np.max(cls_pred, axis = 0)
-        cls_ids = np.argmax(cls_pred, axis = 0)
-        cls_map = cls_ids
         
-
-        color_img = np.zeros((cls_map.shape[0], cls_map.shape[1], 3))
-
-        color_img[:, :, 0][cls_map == 1] = 1
-        color_img[:, :, 1][cls_map == 1] = 0
-        color_img[:, :, 2][cls_map == 1] = 0
-        color_img[:, :, 0][cls_map == 2] = 0
-        color_img[:, :, 1][cls_map == 2] = 1
-        color_img[:, :, 2][cls_map == 2] = 0
-        color_img[:, :, 0][cls_map == 3] = 1
-        color_img[:, :, 1][cls_map == 3] = 1
-        color_img[:, :, 2][cls_map == 3] = 1
-        color_img[:, :, 0][cls_map == 4] = 1
-        color_img[:, :, 1][cls_map == 4] = 1
-        color_img[:, :, 2][cls_map == 4] = 0
-        color_img[:, :, 0][cls_map == 5] = 0
-        color_img[:, :, 1][cls_map == 5] = 1
-        color_img[:, :, 2][cls_map == 5] = 1
-        self.image.set_data(np.swapaxes(color_img, 0, 1))
 
 
     def _key_press(self, event):
@@ -321,19 +305,21 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_small_21-04-2022_4/checkpoints/700epoch"
+    #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/best_checkpoints/154epoch"
 
-    data_file = "/home/stpc/clean_data/list/train_small.txt"
+    data_file = "/home/stpc/clean_data/list/test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
-    model = PIXOR(config["data"]["kitti"]["geometry"])
+    #model = PIXOR()
     #model.to(config['device'])
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    #model.load_state_dict(torch.load(model_path, map_location="cpu"))
     #device = config["device"]
 
+    model_path = "/home/stpc/models/pixor.pt"
+    model = torch.jit.load(model_path)
     vis = Vis(data_loader, model, config["data"])
     vis.run()
 

@@ -42,7 +42,10 @@ def focal_loss(
     # compute the actual focal loss
     weight = torch.pow(-input_soft + 1.0, gamma)
     #focal = -alpha * weight * log_input_soft
-    focal = -alpha * log_input_soft
+    alphas = [0.05, 0.15, 0.4, 0.4]
+    focal = -log_input_soft
+    for i in range(len(alphas)):
+        focal[:, i, ...] *= alphas[i] 
     loss_tmp = torch.einsum('bc...,bc...->b...', (target_one_hot, focal))
 
     if reduction == 'none':
@@ -100,15 +103,28 @@ class CustomLoss(nn.Module):
         reg_pred = pred["reg_map"]
         cls_target = target["cls_map"]
         reg_target = target["reg_map"]
+        submap_target = target["sub_map"]
 
-        fc_loss = focal_loss(cls_pred, cls_target, self.alpha, self.gamma, self.reduction)
+        #submap_pred = torch.unsqueeze(submap_target, 1).repeat(1, cls_pred.shape[1], 1, 1)
+        #cls = cls_pred[submap_pred == 1].view((1, cls_pred.shape[1], -1))
+        idxs = submap_target == 1
+        num = idxs.nonzero().shape[0]
+        cls = torch.zeros(1, cls_pred.shape[1], num)
+        cls = cls.to(self.device)
+        for i in range(cls_pred.shape[1]):
+            cls[0, i, :] = cls_pred[:, i, :, :][idxs]
+       
+        fc_loss = focal_loss(cls, cls_target[submap_target == 1].view(1, -1), self.alpha, self.gamma, self.reduction)
       
         mask = torch.zeros(cls_target.shape, dtype = torch.int16)
         mask = mask.to(self.device)
         
-        mask[cls_target > 0] = 1
-        num_pixels = torch.sum(mask)
+        #mask[cls_target > 0] = 1
+        #mask[submap_target == 1] = 1
+        mask[torch.logical_and(cls_target > 0, submap_target == 1)] = 1
         mask = torch.unsqueeze(mask, 1).repeat(1, reg_pred.shape[1], 1, 1)
+        num_pixels = torch.sum(mask)
+
         #loc_loss = F.smooth_l1_loss(reg_pred * mask, reg_target * mask, reduction='mean')
         #loss = loc_loss + fc_loss
         if num_pixels <= 0:
@@ -116,15 +132,20 @@ class CustomLoss(nn.Module):
             loc_loss = torch.tensor([0])
         else:
             loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
-            loss = fc_loss + loc_loss
+            loss = 3 * fc_loss + loc_loss
 
         return loss, fc_loss.item(), loc_loss.item()
 
 if __name__ == "__main__":
-    input = torch.zeros((3, 2, 2))
-    target = torch.ones((3, 2, 2)) * 2
-    loss = F.smooth_l1_loss(input, target, reduction = "none")
-    print(loss)
+    input = torch.ones((2, 4, 5))
+    alpha = torch.tensor([0.05, 0.15, 0.4, 0.4])
+    for i in range(alpha.shape[0]):
+        input[:, i, ...] *= alpha[i]
+    print(input)
+    # mask = torch.unsqueeze(input, 1).repeat(1, 4, 1, 1)
+    # print(mask[0])
+    # #loss = F.smooth_l1_loss(input, target, reduction = "none")
+    #print(loss)
 
 
     # loss = FocalLoss(alpha=0.5, gamma=2.0, reduction="mean")

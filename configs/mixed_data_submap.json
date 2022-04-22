@@ -2,10 +2,10 @@
     "model": "pixor",
     "date": "21-04-2022",
     "ver": 1,
-    "note": "mixed",
+    "note": "mixed_submap",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": true,
+    "resume_training": false,
     "resume_from": 10,
     "data":
     {
@@ -112,7 +112,7 @@
     "train": 
     {
         "batch_size": 2,
-        "learning_rate": 0.02,
+        "learning_rate": 0.005,
         "epochs": 500,
         "momentum": 0.9,
         "weight_decay": 0.0001,

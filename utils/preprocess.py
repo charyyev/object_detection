@@ -2,38 +2,39 @@ import numpy as np
 import math
 import torch
 
-def voxelize(points):
-    x_min = 0
-    x_max = 70
-    y_min = -40
-    y_max = 40
-    z_min = -2.5
-    z_max = 1
-    x_res = 0.1
-    y_res = 0.1
-    z_res = 0.1
+def voxelize(points, geometry):
+    x_min = geometry["x_min"]
+    x_max = geometry["x_max"]
+    y_min = geometry["y_min"]
+    y_max = geometry["y_max"]
+    z_min = geometry["z_min"]
+    z_max = geometry["z_max"]
+    x_res = geometry["x_res"]
+    y_res = geometry["y_res"]
+    z_res = geometry["z_res"]
 
     x_size = int((x_max - x_min) / x_res)
     y_size = int((y_max - y_min) / y_res)
     z_size = int((z_max - z_min) / z_res)
 
+    eps = 0.001
+
     #clip points
-    x_indexes = np.logical_and(points[:, 0] > x_min, points[:, 0] < x_max)
-    y_indexes = np.logical_and(points[:, 1] > y_min, points[:, 1] < y_max)
-    z_indexes = np.logical_and(points[:, 2] > z_min, points[:, 2] < z_max)
+    x_indexes = np.logical_and(points[:, 0] > x_min + eps, points[:, 0] < x_max - eps)
+    y_indexes = np.logical_and(points[:, 1] > y_min + eps, points[:, 1] < y_max - eps)
+    z_indexes = np.logical_and(points[:, 2] > z_min + eps, points[:, 2] < z_max - eps)
     pts = points[np.logical_and(np.logical_and(x_indexes, y_indexes), z_indexes)]
 
     occupancy_mask = np.zeros((pts.shape[0], 3), dtype = np.int32)
-    voxels = np.zeros((x_size, y_size, z_size))
-    occupancy_mask[:, 0] = (pts[:, 0] - x_min) / x_res
-    occupancy_mask[:, 1] = (pts[:, 1] - y_min) / y_res
-    occupancy_mask[:, 2] = (pts[:, 2] - z_min) / z_res
+    voxels = np.zeros((x_size, y_size, z_size), dtype = np.float32)
+    occupancy_mask[:, 0] = (pts[:, 0] - x_min) // x_res
+    occupancy_mask[:, 1] = (pts[:, 1] - y_min) // y_res
+    occupancy_mask[:, 2] = (pts[:, 2] - z_min) // z_res
 
     idxs = np.array([occupancy_mask[:, 0].reshape(-1), occupancy_mask[:, 1].reshape(-1), occupancy_mask[:, 2].reshape( -1)])
 
     voxels[idxs[0], idxs[1], idxs[2]] = 1
     return np.swapaxes(voxels, 0, 1)
-    #return voxels
 
 
 def voxel_to_points(voxel, geometry):

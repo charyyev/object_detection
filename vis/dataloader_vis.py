@@ -125,7 +125,7 @@ class Vis():
                             size=1.0)
 
         self.plot_boxes(class_list, boxes)
-
+        sub_map = data["sub_map"]
         color_img = np.zeros((cls_map.shape[0], cls_map.shape[1], 3))
 
         color_img[:, :, 0][cls_map == 1] = 1
@@ -137,6 +137,9 @@ class Vis():
         color_img[:, :, 0][cls_map == 3] = 1
         color_img[:, :, 1][cls_map == 3] = 1
         color_img[:, :, 2][cls_map == 3] = 1
+        color_img[:, :, 0][sub_map == 0] = 0
+        color_img[:, :, 1][sub_map == 0] = 1
+        color_img[:, :, 2][sub_map == 0] = 1
         
 
         self.image.set_data(np.swapaxes(color_img, 0, 1))

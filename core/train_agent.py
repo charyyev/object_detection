@@ -46,13 +46,14 @@ class TrainAgent:
             voxel = data["voxel"].to(self.device)
             cls_label = data["cls_map"].to(self.device)
             reg_label = data["reg_map"].to(self.device)
+            submap = data["sub_map"].to(self.device)
             self.optimizer.zero_grad()
 
             pred = self.model(voxel)
             #cls = self.cls_loss_fn(pred["cls_map"], cls_label)
             #reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
             #loss = cls + reg
-            loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label})
+            loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label, "sub_map": submap})
             #loss = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label})
             loss.backward()
             self.optimizer.step()
@@ -108,12 +109,13 @@ class TrainAgent:
                 voxel = data["voxel"].to(self.device)
                 cls_label = data["cls_map"].to(self.device)
                 reg_label = data["reg_map"].to(self.device)
+                submap = data["sub_map"].to(self.device)
 
                 pred = self.model(voxel)
                 #cls = self.cls_loss_fn(pred["cls_map"], cls_label)
                 #reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
                 #loss = cls + reg
-                loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label})
+                loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label, "sub_map": submap})
 
                 cls_loss += cls
                 reg_loss += reg

@@ -1,12 +1,12 @@
 {
     "model": "pixor",
-    "date": "19-04-2022",
-    "ver": 8,
+    "date": "21-04-2022",
+    "ver": 4,
     "note": "small",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "resume_training": false,
-    "resume_from": 740,
+    "resume_from": 120,
     "data":
     {
         "kitti":
@@ -87,7 +87,7 @@
     "train": 
     {
         "batch_size": 2,
-        "learning_rate": 0.02,
+        "learning_rate": 0.001,
         "epochs": 1000,
         "momentum": 0.9,
         "weight_decay": 0.0001,

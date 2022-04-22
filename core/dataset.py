@@ -54,7 +54,7 @@ class Dataset(Dataset):
         scan = scan.permute(2, 0, 1)
         reg_map, cls_map = self.get_label(boxes, self.config[data_type]["geometry"])
         reg_map = torch.from_numpy(reg_map).permute(2, 0, 1)
-
+        sub_map = self.sub_sample_mask(boxes, self.config[data_type]["geometry"])
         if self.task == "val":
             class_list, boxes = self.read_bbox(boxes)
     
@@ -64,12 +64,14 @@ class Dataset(Dataset):
                     "cls_list": class_list,
                     "points": points,
                     "boxes": boxes,
-                    "dtype": data_type
+                    "dtype": data_type,
+                    "sub_map": sub_map
                 }   
 
         return {"voxel": scan, 
                 "reg_map": reg_map,
-                "cls_map": cls_map
+                "cls_map": cls_map,
+                "sub_map": sub_map
             }
 
             
@@ -202,28 +204,40 @@ class Dataset(Dataset):
             reg_map[label_y, label_x] = actual_reg_target
 
 
-    def sub_sample_mask(self, boxes):
-        mask = np.zeros((self.geometry['label_shape'][0], self.geometry['label_shape'][1]), dtype = np.int64)
-        radii = {1: [5, 2], 2: [5, 8], 3: [5, 8]}
+    def sub_sample_mask(self, boxes, geometry):
+        mask = np.ones((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
+        inner_radius_coeff = 0.3
+        outer_radius_coeff = 1.2
         for i in range(boxes.shape[0]):
             box = boxes[i]
-            # convert box center to bev
-            x, y, z = box[4:7] / 4 / 0.1
-            y += self.geometry["label_shape"][0] / 2
-            y, x = x, y
+            
+            # We will mask only cars
+            if box[0] != 1:
+                continue
 
-            r_in, r_out = radii[box[0]]
+            # convert box center to bev
+            x, y = box[4:6]
+            x = (x - geometry["x_min"]) / geometry["x_res"] / 4
+            y = (y - geometry["y_min"]) / geometry["y_res"] / 4            
+            #y, x = x, y
+          
+            # inner and outer radius of circle
+            w = box[3] / 4 / 2 / geometry["x_res"]
+
+            r_in = inner_radius_coeff * w
+            r_out = outer_radius_coeff * w
             x_min = max(0, int(x - r_out))
-            x_max = min(self.geometry["label_shape"][1], int(x + r_out))
+            x_max = min(geometry["label_shape"][1], int(x + r_out))
 
             y_min = max(0, int(y - r_out))
-            y_max = min(self.geometry["label_shape"][0], int(y + r_out))
+            y_max = min(geometry["label_shape"][0], int(y + r_out))
 
 
             Y, X = np.ogrid[y_min:y_max, x_min:x_max]
             dist_from_center = np.sqrt((X - x)**2 + (Y-y)**2)
 
-            mask[y_min:y_max, x_min:x_max][dist_from_center <= r_out] = 1
+            mask[y_min:y_max, x_min:x_max][dist_from_center <= r_out] = 0
+            mask[y_min:y_max, x_min:x_max][dist_from_center <= r_in] = 1
 
         return mask
 
