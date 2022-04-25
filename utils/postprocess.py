@@ -92,8 +92,8 @@ def filter_pred(reg_pred, cls_pred, config, score_threshold, nms_threshold):
     center_x = dx + xx * ratio * geometry["x_res"] + geometry["x_min"]
     l = np.exp(log_l)
     w = np.exp(log_w)
-    yaw = np.arctan2(sin_t, cos_t)
-
+    yaw2 = np.arctan2(sin_t, cos_t)
+    yaw = yaw2 / 2
     
     cos_t = np.cos(yaw)
     sin_t = np.sin(yaw)

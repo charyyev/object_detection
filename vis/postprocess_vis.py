@@ -131,7 +131,7 @@ class Vis():
         points = data["points"].squeeze().cpu().numpy()
 
         cls_one_hot = one_hot(data["cls_map"], num_classes= 6, device="cpu", dtype=data["cls_map"].dtype)
-        boxes = filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), self.config[data["dtype"][0]])
+        boxes = filter_pred(data["reg_map"].numpy(), cls_one_hot.numpy(), self.config[data["dtype"][0]], 0.5, 0.2)
 
         box_list = []
         class_list = []

@@ -321,11 +321,11 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_small_21-04-2022_4/checkpoints/700epoch"
+    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/checkpoints/240epoch"
 
-    data_file = "/home/stpc/clean_data/list/train_small.txt"
+    data_file = "/home/stpc/clean_data/list/custom_test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 

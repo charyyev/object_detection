@@ -42,7 +42,7 @@ def focal_loss(
     # compute the actual focal loss
     weight = torch.pow(-input_soft + 1.0, gamma)
     #focal = -alpha * weight * log_input_soft
-    alphas = [0.05, 0.15, 0.4, 0.4]
+    alphas = [0.05, 0.15, 0.8, 0.8]
     focal = -log_input_soft
     for i in range(len(alphas)):
         focal[:, i, ...] *= alphas[i] 
@@ -132,7 +132,7 @@ class CustomLoss(nn.Module):
             loc_loss = torch.tensor([0])
         else:
             loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
-            loss = 3 * fc_loss + loc_loss
+            loss = 2 * fc_loss + loc_loss
 
         return loss, fc_loss.item(), loc_loss.item()
 

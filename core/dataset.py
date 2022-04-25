@@ -159,7 +159,7 @@ class Dataset(Dataset):
 
     def get_corners(self, bbox):
         h, w, l, x, y, z, yaw = bbox[1:]
-        
+        yaw2 = math.fmod(2 * yaw, 2 * math.pi)
         bev_corners = np.zeros((4, 2), dtype=np.float32)
         # rear left
         bev_corners[0, 0] = x - l/2 * np.cos(yaw) - w/2 * np.sin(yaw)
@@ -177,7 +177,7 @@ class Dataset(Dataset):
         bev_corners[3, 0] = x + l/2 * np.cos(yaw) - w/2 * np.sin(yaw)
         bev_corners[3, 1] = y + l/2 * np.sin(yaw) + w/2 * np.cos(yaw)
 
-        reg_target = [np.cos(yaw), np.sin(yaw), x, y, w, l]
+        reg_target = [np.cos(yaw2), np.sin(yaw2), x, y, w, l]
 
         return bev_corners, reg_target
 

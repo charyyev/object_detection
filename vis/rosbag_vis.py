@@ -244,8 +244,8 @@ if __name__ == "__main__":
     bag_name = bag_file.split("/")[-1].split(".")[0]
     with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
         config = json.load(f)
-    #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/best_checkpoints/154epoch"
-    model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"
+    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/checkpoints/240epoch"
+    #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"
     device = "cuda:0"
     data_type = "custom"
     geometry = config["data"][data_type]["geometry"]

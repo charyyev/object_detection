@@ -5,8 +5,8 @@
     "note": "mixed_submap",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": false,
-    "resume_from": 10,
+    "resume_training": true,
+    "resume_from": 240,
     "data":
     {
         "custom":
