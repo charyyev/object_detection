@@ -68,6 +68,33 @@ def corner_to_center_box3d(boxes_corner):
 
     return np.array(ret)
 
+def corner_to_center_box2d(boxes_corner):
+    # (N, 4, 2) -> (N, 5)
+    ret = []
+    for roi in boxes_corner:
+        roi = np.array(roi)
+
+        l = np.sum(
+            np.sqrt(np.sum((roi[0, [0, 1]] - roi[3, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[1, [0, 1]] - roi[2, [0, 1]]) ** 2)) 
+        ) / 2
+        w = np.sum(
+            np.sqrt(np.sum((roi[0, [0, 1]] - roi[1, [0, 1]]) ** 2)) +
+            np.sqrt(np.sum((roi[2, [0, 1]] - roi[3, [0, 1]]) ** 2)) 
+        ) / 2
+        x = np.sum(roi[:, 0], axis=0) / 4
+        y = np.sum(roi[:, 1], axis=0) / 4
+
+        rz = np.sum(
+            math.atan2(roi[2, 0] - roi[1, 0], -roi[2, 1] + roi[1, 1]) +
+            math.atan2(roi[3, 0] - roi[0, 0], -roi[3, 1] + roi[0, 1])
+        ) / 2
+       
+        rz = rz - np.pi / 2
+        ret.append([x, y, l, w, rz])
+
+    return np.array(ret)
+
 
 def point_transform(points, tx, ty, tz, rx=0, ry=0, rz=0):
     # Input:

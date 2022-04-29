@@ -253,8 +253,8 @@ class PIXOR(nn.Module):
         cls = torch.softmax(cls, dim = 1)
 
         ratio = 4
-        reg_pred = reg[0]
-        cls_pred = cls[0]
+        reg_pred = reg[0].detach().cpu()
+        cls_pred = cls[0].detach().cpu()
         cos_t, sin_t, dx, dy, log_w, log_l = torch.chunk(reg_pred, 6, dim=0)
 
         cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
@@ -272,7 +272,8 @@ class PIXOR(nn.Module):
         center_x = dx + xx * ratio * x_res + x_min
         l = torch.exp(log_l)
         w = torch.exp(log_w)
-        yaw = torch.atan2(sin_t, cos_t)
+        yaw2 = torch.atan2(sin_t, cos_t)
+        yaw = yaw2 / 2
 
         cos_t = torch.cos(yaw)
         sin_t = torch.sin(yaw)
@@ -291,23 +292,13 @@ class PIXOR(nn.Module):
         decoded_reg = torch.swapaxes(decoded_reg, 0, 1)
         decoded_reg = torch.swapaxes(decoded_reg, 1, 2)
         decoded_reg = decoded_reg[idxs]
-        corners = torch.reshape(decoded_reg, (-1, 4, 2))
+        #corners = torch.reshape(decoded_reg, (-1, 4, 2))
+        corners = decoded_reg
+        boxes = torch.cat([cls.reshape(-1, 1),
+                             scores.reshape(-1, 1),
+                             corners], dim = 1)
 
-        center_y = center_y[0][idxs]
-        center_x = center_x[0][idxs]
-        l = l[0][idxs]
-        w = w[0][idxs]
-        yaw = yaw[0][idxs]
-
-        boxes = torch.stack([cls, 
-                      scores, 
-                      center_x, 
-                      center_y, 
-                      l, 
-                      w, 
-                      yaw])
-        boxes = torch.swapaxes(boxes, 0, 1)
-        return {"corners": corners, "boxes": boxes}
+        return boxes
 
 def test_decoder(decode = True):
     geom = {

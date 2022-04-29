@@ -14,6 +14,7 @@ import torch
 import torch.nn.functional as F
 
 from utils.preprocess import voxelize, voxel_to_points
+from utils.transform import corner_to_center_box2d
 from utils.postprocess import non_max_suppression
 from core.dataset import Dataset
 from utils.one_hot import one_hot
@@ -230,15 +231,20 @@ class Vis():
         y_res = geometry["y_res"]
         
         voxel = data["voxel"]
-        start = time.time()
+        voxel = voxel.to("cuda:0")
         pred = self.model(voxel, x_min, y_min, x_res, y_res, 0.1)
-        print("time it took: ", time.time() - start)
-        corners = pred["corners"].detach().cpu().numpy()
-        boxes = pred["boxes"].detach().cpu().numpy()
+        cls = pred[:, 0].detach().cpu().numpy()
+        scores = pred[:, 1].detach().cpu().numpy()
+        corners = pred[:, 2:].reshape(-1, 4, 2).detach().cpu().numpy()
 
-        selected_idxs = non_max_suppression(corners, boxes[:, 0], 0.1)
-        
-        selected_boxes = boxes[selected_idxs]
+        selected_idxs = non_max_suppression(corners, scores, 0.1)
+        selected_corners = corners[selected_idxs]        
+
+
+        selected_boxes = corner_to_center_box2d(selected_corners)
+        cls = cls[selected_idxs].reshape(-1, 1)
+        scores = scores[selected_idxs].reshape(-1, 1)
+        selected_boxes = np.concatenate((cls, scores , selected_boxes), axis = 1)
 
         points = data["points"].squeeze().numpy()
 
@@ -307,19 +313,19 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
         config = json.load(f)
-    #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/best_checkpoints/154epoch"
+    model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/best_checkpoints/154epoch"
 
     data_file = "/home/stpc/clean_data/list/test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
-    #model = PIXOR()
-    #model.to(config['device'])
-    #model.load_state_dict(torch.load(model_path, map_location="cpu"))
-    #device = config["device"]
+    model = PIXOR()
+    model.to(config['device'])
+    model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
+    device = config["device"]
 
-    model_path = "/home/stpc/models/pixor.pt"
-    model = torch.jit.load(model_path)
+    #model_path = "/home/stpc/models/pixor.pt"
+    #model = torch.jit.load(model_path)
     vis = Vis(data_loader, model, config["data"])
     vis.run()
 

@@ -6,7 +6,7 @@
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "resume_training": true,
-    "resume_from": 240,
+    "resume_from": 470,
     "data":
     {
         "custom":
