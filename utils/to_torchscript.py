@@ -17,7 +17,7 @@ if __name__ == "__main__":
                 "label_shape": [200, 175, 6]
             }
     
-    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/best_checkpoints/479epoch"
+    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
 
     data_file = "/home/stpc/clean_data/list/test.txt"
     

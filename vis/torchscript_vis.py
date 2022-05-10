@@ -313,9 +313,9 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/best_checkpoints/154epoch"
+    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
 
-    data_file = "/home/stpc/clean_data/list/test.txt"
+    data_file = "/home/stpc/clean_data/list/custom_test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 

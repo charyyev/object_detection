@@ -277,11 +277,12 @@ class MobileNetV2(nn.Module):
 
 if __name__ == "__main__":
     #model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
-    model = MobileNetV2(1)
+    model = MobileNetV2(1).features
     model.eval()
     
     writer = SummaryWriter('/home/stpc/experiments/mobilenet_test')
     writer.add_graph(model, torch.rand((1, 3, 400, 200)))
+    writer.close()
     
     # print(next(model.parameters()).is_cuda)
     # num = 30

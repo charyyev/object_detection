@@ -6,7 +6,7 @@
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "resume_training": true,
-    "resume_from": 470,
+    "resume_from": 495,
     "data":
     {
         "custom":
@@ -113,7 +113,7 @@
     {
         "batch_size": 2,
         "learning_rate": 0.005,
-        "epochs": 500,
+        "epochs": 1500,
         "momentum": 0.9,
         "weight_decay": 0.0001,
         "lr_decay_at": [2000, 3000],
