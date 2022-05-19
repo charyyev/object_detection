@@ -25,8 +25,8 @@ if __name__ == "__main__":
     #model.to(config['device'])
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     #device = config["device"]
-
+    model.half()
     scripted_model = torch.jit.script(model)
 
     print(scripted_model.code)
-    scripted_model.save("/home/stpc/models/pixor_2yaw.pt")
+    scripted_model.save("/home/stpc/models/pixor_half.pt")

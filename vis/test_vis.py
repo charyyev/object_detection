@@ -18,7 +18,7 @@ from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
 from core.models.pixor import PIXOR
-
+from core.models.mobilepixor import MobilePIXOR
 
 class Vis():
     def __init__(self, data_loader, model, config, task = "val"):
@@ -321,15 +321,18 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/mobilepixor.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/checkpoints/75epoch"
+    model_type = "mobilepixor"
 
-    data_file = "/home/stpc/clean_data/list/custom_test.txt"
-    dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
+    data_file = "/home/stpc/clean_data/list/test.txt"
+    dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
-
-    model = PIXOR(config["data"]["kitti"]["geometry"])
+    if model_type == "pixor":
+        model = PIXOR(config["data"]["kitti"]["geometry"])
+    elif model_type == "mobilepixor":
+        model = MobilePIXOR(config["data"]["kitti"]["geometry"])
     #model.to(config['device'])
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     #device = config["device"]

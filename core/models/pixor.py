@@ -2,45 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
-
+import time
 
 
 def conv3x3(in_planes, out_planes, stride=1, bias=False):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=bias)
-
-
-class BasicBlock(nn.Module):
-    expansion = 1
-
-    def __init__(self, in_planes, planes, stride=1, downsample=None):
-        super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(in_planes, planes, stride, bias=True)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes, bias=True)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.downsample = downsample
-        self.stride = stride
-
-    def forward(self, x):
-        residual = x
-
-        out = self.conv1(x)
-        #out = self.bn1(out)
-        out = self.relu(out)
-
-        out = self.conv2(out)
-        #out = self.bn2(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        out += residual
-        out = self.relu(out)
-
-        return out
 
 
 
@@ -82,7 +50,6 @@ class Bottleneck(nn.Module):
         return out
 
 class BackBone(nn.Module):
-
     def __init__(self, block, num_block, geom, use_bn=True):
         super(BackBone, self).__init__()
 
@@ -136,7 +103,7 @@ class BackBone(nn.Module):
         l3 = self.latlayer3(c3)
         p4 = l3 + self.deconv2(p5)
 
-        return p4
+        return c2
 
     def _make_layer(self, block, planes, num_blocks):
         if self.use_bn:
@@ -179,7 +146,6 @@ class BackBone(nn.Module):
 
 
 class Header(nn.Module):
-
     def __init__(self, use_bn=True):
         super(Header, self).__init__()
 
@@ -246,19 +212,14 @@ class PIXOR(nn.Module):
         self.header.reghead.bias.data.fill_(0)
 
 
-    def forward(self, x):
-        
-        device = torch.device('cpu')
-        if x.is_cuda:
-            device = x.get_device()
-        
+    def forward(self, x):        
         # x = x.permute(0, 3, 1, 2)
         # Torch Takes Tensor of shape (Batch_size, channels, height, width)
 
         features = self.backbone(x)
         cls, reg = self.header(features)
         #pred = torch.cat([cls, reg], dim=1)
-
+        return features
         return {"reg_map" : reg, "cls_map":cls}
 
 def test_decoder(decode = True):
@@ -280,4 +241,33 @@ def test_decoder(decode = True):
     print("Predictions output size", preds.size())
 
 if __name__ == "__main__":
-    test_decoder()
+    geom = {
+        "L1": -40.0,
+        "L2": 40.0,
+        "W1": 0.0,
+        "W2": 70.0,
+        "H1": -2.5,
+        "H2": 1.0,
+        "input_shape": [800, 700, 36],
+        "label_shape": [200, 175, 7]
+    }
+
+    pixor = PIXOR(geom)
+    print("number of parameters: ", sum(p.numel() for p in pixor.parameters() if p.requires_grad))
+    input = torch.rand((1, 35, 800, 700))
+    pred = pixor(input)
+    print(pred.shape)
+    # device = "cuda:0"
+    # pixor.to(device)
+    # print("cuda ?: ", next(pixor.parameters()).is_cuda)
+    # num = 30
+    # total_time = 0
+    # for i in range(num):
+    #     input = torch.rand((1, 35, 800, 700))
+    #     input = input.to(device)
+    #     start = time.time()
+    #     output = pixor(input)
+    #     print("time it took for one inference: ", time.time() - start)
+    #     total_time += time.time() - start
+
+    # print(" time it took for {} inference: {}".format(num, total_time / num))

@@ -204,10 +204,10 @@ class Vis():
 
 
 if __name__ == "__main__":
-    #data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
-    #label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
-    data_folder = "/home/stpc/clean_data/kitti/pointcloud/"
-    label_folder = "/home/stpc/clean_data/kitti/label/"
+    data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
+    label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
+    #data_folder = "/home/stpc/clean_data/kitti/pointcloud/"
+    #label_folder = "/home/stpc/clean_data/kitti/label/"
     
     vis = Vis(data_folder, label_folder)
     vis.run()

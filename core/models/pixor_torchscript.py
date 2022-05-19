@@ -253,8 +253,8 @@ class PIXOR(nn.Module):
         cls = torch.softmax(cls, dim = 1)
 
         ratio = 4
-        reg_pred = reg[0].detach().cpu()
-        cls_pred = cls[0].detach().cpu()
+        reg_pred = reg[0].detach()
+        cls_pred = cls[0].detach()
         cos_t, sin_t, dx, dy, log_w, log_l = torch.chunk(reg_pred, 6, dim=0)
 
         cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
@@ -267,6 +267,8 @@ class PIXOR(nn.Module):
         x = torch.arange(reg.shape[3])
 
         xx, yy = torch.meshgrid(x, y, indexing="xy")
+        xx = xx.to(reg_pred.device)
+        yy = yy.to(reg_pred.device)
 
         center_y = dy + yy * ratio * y_res + y_min
         center_x = dx + xx * ratio * x_res + x_min

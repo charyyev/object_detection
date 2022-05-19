@@ -242,7 +242,7 @@ class Vis():
 if __name__ == "__main__":
     bag_file = "/home/stpc/stpc_ws/data/rosbag_recorder/scripts/city_ori_xt.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
-    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/voxel_size.json", 'r') as f:
         config = json.load(f)
     model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
     #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"

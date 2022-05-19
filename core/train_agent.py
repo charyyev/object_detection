@@ -1,5 +1,6 @@
 from core.dataset import Dataset
 from core.models.pixor import PIXOR
+from core.models.mobilepixor import MobilePIXOR
 from core.losses import CustomLoss
 
 from torch.utils.data import DataLoader
@@ -30,7 +31,12 @@ class TrainAgent:
         momentum = self.config["train"]["momentum"]
         weight_decay = self.config["train"]["weight_decay"]
         lr_decay_at = self.config["train"]["lr_decay_at"]
-        self.model = PIXOR(geometry)
+        if self.config["model"] == "pixor":
+            self.model = PIXOR(geometry)
+            print("training PIXOR")
+        elif self.config["model"] == "mobilepixor":
+            self.model = MobilePIXOR(geometry)
+            print("training MobilePIXOR")
         self.model.to(self.device)
         self.loss = CustomLoss(self.config["loss"]["focal_loss"], self.config["device"])
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
