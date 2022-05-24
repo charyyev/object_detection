@@ -20,10 +20,10 @@ class TrainAgent:
         config = self.config["data"]
         aug_config = self.config["augmentation"]
         train_dataset = Dataset( self.config["train"]["data"], config, aug_config, "train")
-        self.train_loader = DataLoader(train_dataset, shuffle=True, batch_size=self.config["train"]["batch_size"], num_workers=4)
+        self.train_loader = DataLoader(train_dataset, shuffle=True, batch_size=self.config["train"]["batch_size"], num_workers=4, pin_memory=True)
 
         val_dataset = Dataset(self.config["val"]["data"], config, aug_config, "sth")
-        self.val_loader = DataLoader(val_dataset, shuffle=True, batch_size=self.config["val"]["batch_size"], num_workers=4)
+        self.val_loader = DataLoader(val_dataset, shuffle=True, batch_size=self.config["val"]["batch_size"], num_workers=4, pin_memory=True)
 
     def build_model(self):
         geometry = self.config["data"]["kitti"]["geometry"]

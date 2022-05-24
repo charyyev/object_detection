@@ -15,6 +15,7 @@ from vispy import app
 from vispy.scene.visuals import Text
 
 from core.models.pixor import PIXOR
+from core.models.mobilepixor import MobilePIXOR
 from tools.lidar_conversion import pcl_to_numpy
 from utils.preprocess import voxelize
 from utils.postprocess import filter_pred
@@ -242,12 +243,13 @@ class Vis():
 if __name__ == "__main__":
     bag_file = "/home/stpc/stpc_ws/data/rosbag_recorder/scripts/city_ori_xt.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
-    with open("/home/stpc/proj/object_detection/configs/voxel_size.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/mobilepixor.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/724epoch"
     #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"
     device = "cuda:0"
     data_type = "custom"
+    model_type = "mobilepixor"
     geometry = config["data"][data_type]["geometry"]
     
     bag = rosbag.Bag(bag_file)
@@ -259,7 +261,10 @@ if __name__ == "__main__":
 
     print("Done reading frames: ", len(frames), "frames in total")
 
-    model = PIXOR(config["data"]["kitti"]["geometry"])
+    if model_type == "mobilepixor":
+        model = MobilePIXOR(config["data"]["kitti"]["geometry"])
+    elif model_type == "pixor":
+        model = PIXOR(config["data"]["kitti"]["geometry"])
     model.to(device)
     model.load_state_dict(torch.load(model_path, map_location=device))
 

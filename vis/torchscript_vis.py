@@ -325,7 +325,8 @@ if __name__ == "__main__":
     # model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
     # device = config["device"]
 
-    model_path = "/home/stpc/models/pixor_half.pt"
+    #model_path = "/home/stpc/models/pixor_half.pt"
+    model_path = "/home/stpc/models/mobilepixor.pt"
     model = torch.jit.load(model_path)
     model.to("cuda:0")
     vis = Vis(data_loader, model, config["data"])

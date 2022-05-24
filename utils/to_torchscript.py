@@ -1,6 +1,7 @@
 import torch
 
 from core.models.pixor_torchscript import PIXOR
+from core.models.mobilepixor_torchscript import MobilePIXOR
 
 if __name__ == "__main__":
     geometry = {
@@ -17,11 +18,15 @@ if __name__ == "__main__":
                 "label_shape": [200, 175, 6]
             }
     
-    model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/489epoch"
 
     data_file = "/home/stpc/clean_data/list/test.txt"
-    
-    model = PIXOR()
+    model_type = "mobilepixor"
+
+    if model_type == "pixor":
+        model = PIXOR()
+    elif model_type == "mobilepixor":
+        model = MobilePIXOR()
     #model.to(config['device'])
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     #device = config["device"]
@@ -29,4 +34,4 @@ if __name__ == "__main__":
     scripted_model = torch.jit.script(model)
 
     print(scripted_model.code)
-    scripted_model.save("/home/stpc/models/pixor_half.pt")
+    scripted_model.save("/home/stpc/models/mobilepixor.pt")
