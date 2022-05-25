@@ -86,7 +86,7 @@ class Vis():
                             color=colors)
 
 
-    def voxel_to_points_color(self, voxel, geometry, hotspot_mask, quad_map):
+    def voxel_to_points_color(self, voxel, geometry, cls_map, hotspot_mask, quad_map):
         x_min = geometry["x_min"]
         x_max = geometry["x_max"]
         y_min = geometry["y_min"]
@@ -101,15 +101,15 @@ class Vis():
 
         cp_voxel = np.zeros(voxel.shape, dtype = np.int16)
 
-        h_y, h_x = np.where(hotspot_mask.astype(int) == 1)
+        hotspot = hotspot_mask * cls_map
+        print(hotspot.shape)
+        h_y, h_x = np.where(hotspot > 0)
 
         for i in range(h_y.shape[0]):
             x = h_x[i]
             y = h_y[i]
             cp_voxel[4 * x: 4 * x + 4, 4 * y:4 * y + 4, :] = quad_map[y][x] + 1
-            #cp_voxel[4 * x: 4 * x + 4, 4 * y: 4 * y + 4, :] = 1
 
-        #voxel = cp_
 
 
         xs, ys, zs = np.where(voxel.astype(int) == 1)
@@ -140,7 +140,7 @@ class Vis():
         quad_map = data["quad_map"]
         hotspot_mask = data["hotspot_mask"]
         data_type = data["dtype"]
-        points, colors = self.voxel_to_points_color(voxel, dataset.config[data_type]["geometry"], hotspot_mask, quad_map)
+        points, colors = self.voxel_to_points_color(voxel, dataset.config[data_type]["geometry"], cls_map, hotspot_mask, quad_map)
         #points = data["points"]
         #print(boxes)
         #colors = self.get_point_color_using_intensity(points)
@@ -170,7 +170,7 @@ class Vis():
         # color_img[:, :, 2][sub_map == 0] = 1
         
 
-        self.image.set_data(np.swapaxes(hotspot_mask, 0, 1))
+        self.image.set_data(np.swapaxes( hotspot_mask * cls_map, 0, 1))
 
 
     def _key_press(self, event):

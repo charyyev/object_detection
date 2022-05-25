@@ -262,8 +262,8 @@ class Header(nn.Module):
         self.clshead = conv3x3(16, 4, bias=True)
         self.reghead = conv3x3(16, 4, bias=True)
         self.quadhead = conv3x3(16, 4, bias=True)
-        self.xargmaxhead = conv3x3(16, 16, bias=True)
-        self.yargmaxhead = conv3x3(16, 16, bias=True)
+        self.xargminhead = conv3x3(16, 16, bias=True)
+        self.yargminhead = conv3x3(16, 16, bias=True)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -276,8 +276,8 @@ class Header(nn.Module):
         cls = self.clshead(x)
         reg = self.reghead(x)
         quad = self.quadhead(x)
-        dx = self.xargmaxhead(x)
-        dy = self.yargmaxhead(x)
+        dx = self.xargminhead(x)
+        dy = self.yargminhead(x)
 
         return cls, reg, quad, dx, dy
 
@@ -310,10 +310,10 @@ class HotSpotPIXOR(nn.Module):
         self.header.reghead.bias.data.fill_(0)
         self.header.quadhead.weight.data.fill_(0)
         self.header.quadhead.bias.data.fill_(0)
-        self.header.xargmaxhead.weight.data.fill_(-math.log((1.0-prior)/prior))
-        self.header.xargmaxhead.bias.data.fill_(0)
-        self.header.yargmaxhead.weight.data.fill_(-math.log((1.0-prior)/prior))
-        self.header.yargmaxhead.bias.data.fill_(0)
+        self.header.xargminhead.weight.data.fill_(-math.log((1.0-prior)/prior))
+        self.header.xargminhead.bias.data.fill_(0)
+        self.header.yargminhead.weight.data.fill_(-math.log((1.0-prior)/prior))
+        self.header.yargminhead.bias.data.fill_(0)
 
 
     def forward(self, x):        
@@ -322,7 +322,7 @@ class HotSpotPIXOR(nn.Module):
         features = self.backbone(x)
         cls, reg, quad, dx, dy = self.header(features)
 
-        return {"reg_map" : reg, "cls_map":cls, "quad": quad, "x": dx, "y": dy}
+        return {"reg_map" : reg, "cls_map":cls, "quad_map": quad, "x": dx, "y": dy}
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 from core.train_agent import TrainAgent
+from core.hotspot_agent import HotSpotAgent
 
 import argparse
 import json
@@ -17,7 +18,10 @@ if __name__ == "__main__":
     f = open(args.config)
     config = json.load(f)
 
-    agent = TrainAgent(config)
+    if "strategy" in config and config["strategy"] == "hotspot":
+        agent = HotSpotAgent(config)
+    else:
+        agent = TrainAgent(config)
     agent.train()
         
     

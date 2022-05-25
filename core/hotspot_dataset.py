@@ -73,12 +73,12 @@ class HotSpotDataset(Dataset):
                 }   
 
         return {
+            "voxel": self.scan,
             "reg_map": target["reg_map"],
             "cls_map": target["cls_map"],
             "argmin_map": target["argmin_map"],
             "quad_map": target["quad_map"],
             "hotspot_mask": target["hotspot_mask"],
-
             }
 
             
@@ -162,7 +162,7 @@ class HotSpotDataset(Dataset):
         x_argmin_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         y_argmin_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         quad_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
-        hotspot_mask = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
+        hotspot_mask = np.ones((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         for i in range(boxes.shape[0]):
             self.update_label_map(reg_map, cls_map, x_argmin_map, y_argmin_map, quad_map, hotspot_mask, boxes[i], geometry)
 
@@ -196,7 +196,7 @@ class HotSpotDataset(Dataset):
         bev_corners[3, 0] = x + l/2 * np.cos(yaw) - w/2 * np.sin(yaw)
         bev_corners[3, 1] = y + l/2 * np.sin(yaw) + w/2 * np.cos(yaw)
 
-        reg_target = [np.cos(yaw), np.sin(yaw), x, y, w, l]
+        reg_target = [np.cos(yaw2), np.sin(yaw2), x, y, w, l]
 
         return bev_corners, reg_target
 
@@ -262,7 +262,10 @@ class HotSpotDataset(Dataset):
                     quad_map[label_y, label_x] = quad
 
                     num_points += 1
-                    hotspot_mask[label_y, label_x] = 1
+                else:
+                    hotspot_mask[label_y, label_x] = 0
+            else:
+                hotspot_mask[p[1], p[0]] = 0
 
 
     def sub_sample_mask(self, boxes, geometry):
