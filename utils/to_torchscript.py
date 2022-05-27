@@ -18,7 +18,7 @@ if __name__ == "__main__":
                 "label_shape": [200, 175, 6]
             }
     
-    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/489epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/754epoch"
 
     data_file = "/home/stpc/clean_data/list/test.txt"
     model_type = "mobilepixor"

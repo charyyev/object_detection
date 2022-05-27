@@ -49,17 +49,12 @@ class HotSpotAgent:
             cls_label = data["cls_map"].to(self.device)
             reg_label = data["reg_map"].to(self.device)
             hotspot_mask = data["hotspot_mask"].to(self.device)
-            xargmin, yargmin = data["argmin_map"]
-            xargmin = xargmin.to(self.device)
-            yargmin = yargmin.to(self.device)
             quad_label = data["quad_map"].to(self.device)
 
             target = {
                 "cls_map": cls_label,
                 "reg_map": reg_label,
                 "hotspot_mask": hotspot_mask,
-                "xargmin": xargmin,
-                "yargmin": yargmin,
                 "quad_map": quad_label
             }
             self.optimizer.zero_grad()
@@ -125,17 +120,12 @@ class HotSpotAgent:
                 cls_label = data["cls_map"].to(self.device)
                 reg_label = data["reg_map"].to(self.device)
                 hotspot_mask = data["hotspot_mask"].to(self.device)
-                xargmin, yargmin = data["argmin_map"]
-                xargmin = xargmin.to(self.device)
-                yargmin = yargmin.to(self.device)
                 quad_label = data["quad_map"].to(self.device)
 
                 target = {
                     "cls_map": cls_label,
                     "reg_map": reg_label,
                     "hotspot_mask": hotspot_mask,
-                    "xargmin": xargmin,
-                    "yargmin": yargmin,
                     "quad_map": quad_label
                 }
 

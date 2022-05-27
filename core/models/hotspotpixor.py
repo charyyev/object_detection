@@ -260,10 +260,10 @@ class Header(nn.Module):
         self.bn4 = nn.BatchNorm2d(16)
 
         self.clshead = conv3x3(16, 4, bias=True)
-        self.reghead = conv3x3(16, 4, bias=True)
+        self.reghead = conv3x3(16, 6, bias=True)
         self.quadhead = conv3x3(16, 4, bias=True)
-        self.xargminhead = conv3x3(16, 16, bias=True)
-        self.yargminhead = conv3x3(16, 16, bias=True)
+        # self.xargminhead = conv3x3(16, 16, bias=True)
+        # self.yargminhead = conv3x3(16, 16, bias=True)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -276,10 +276,10 @@ class Header(nn.Module):
         cls = self.clshead(x)
         reg = self.reghead(x)
         quad = self.quadhead(x)
-        dx = self.xargminhead(x)
-        dy = self.yargminhead(x)
+        # dx = self.xargminhead(x)
+        # dy = self.yargminhead(x)
 
-        return cls, reg, quad, dx, dy
+        return cls, reg, quad
 
 
 class HotSpotPIXOR(nn.Module):
@@ -308,21 +308,21 @@ class HotSpotPIXOR(nn.Module):
         self.header.clshead.bias.data.fill_(0)
         self.header.reghead.weight.data.fill_(0)
         self.header.reghead.bias.data.fill_(0)
-        self.header.quadhead.weight.data.fill_(0)
+        self.header.quadhead.weight.data.fill_(-math.log((1.0-prior)/prior))
         self.header.quadhead.bias.data.fill_(0)
-        self.header.xargminhead.weight.data.fill_(-math.log((1.0-prior)/prior))
-        self.header.xargminhead.bias.data.fill_(0)
-        self.header.yargminhead.weight.data.fill_(-math.log((1.0-prior)/prior))
-        self.header.yargminhead.bias.data.fill_(0)
+        # self.header.xargminhead.weight.data.fill_(-math.log((1.0-prior)/prior))
+        # self.header.xargminhead.bias.data.fill_(0)
+        # self.header.yargminhead.weight.data.fill_(-math.log((1.0-prior)/prior))
+        # self.header.yargminhead.bias.data.fill_(0)
 
 
     def forward(self, x):        
         # Torch Takes Tensor of shape (Batch_size, channels, height, width)
 
         features = self.backbone(x)
-        cls, reg, quad, dx, dy = self.header(features)
+        cls, reg, quad = self.header(features)
 
-        return {"reg_map" : reg, "cls_map":cls, "quad_map": quad, "x": dx, "y": dy}
+        return {"reg_map" : reg, "cls_map":cls, "quad_map": quad}
 
 
 if __name__ == "__main__":

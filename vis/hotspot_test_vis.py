@@ -222,12 +222,9 @@ class Vis():
         voxel = data["voxel"]
         pred = self.model(voxel)
         pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
-        pred["x"] = F.softmax(pred["x"], dim=1)
-        pred["y"] = F.softmax(pred["y"], dim=1)
         reg_pred = pred["reg_map"].detach().cpu().numpy()
         cls_pred = pred["cls_map"].detach().cpu().numpy()
-        x_pred = pred["x"].detach().cpu().numpy()
-        y_pred = pred["y"].detach().cpu().numpy()
+
         boxes = filter_pred(reg_pred, cls_pred, self.config[data["dtype"][0]], score_threshold=0.1, nms_threshold=0.8)
         #cls_pred = one_hot(data["cls_map"], num_classes=6, device="cpu", dtype=data["cls_map"].dtype).detach().cpu().numpy()
         #boxes = filter_pred(pred["reg_map"].detach().cpu().numpy(), cls_pred, self.config[data["dtype"][0]])
@@ -325,10 +322,10 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/hotspot.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_overfit_25-05-2022_1/checkpoints/450epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_hotspot_25-05-2022_1/checkpoints/290epoch"
 
-    data_file = "/home/stpc/clean_data/list/overfit1.txt"
-    dataset = HotSpotDataset(data_file, config["data"], config["augmentation"], "val")
+    data_file = "/home/stpc/clean_data/list/custom_test.txt"
+    dataset = HotSpotDataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
     
     model = HotSpotPIXOR(config["data"]["kitti"]["geometry"])

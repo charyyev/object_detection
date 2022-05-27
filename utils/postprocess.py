@@ -82,7 +82,6 @@ def filter_pred(reg_pred, cls_pred, config, score_threshold, nms_threshold):
     idxs = np.logical_and(cls_probs > score_threshold, cls_ids != 0)
     cls = cls_ids[idxs]
     scores = cls_probs[idxs]
-
     y = np.arange(geometry["label_shape"][0])
     x = np.arange(geometry["label_shape"][1])
     xx, yy = np.meshgrid(x, y)

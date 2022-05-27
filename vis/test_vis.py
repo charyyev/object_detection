@@ -323,11 +323,11 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/mobilepixor.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/checkpoints/75epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/754epoch"
     model_type = "mobilepixor"
 
-    data_file = "/home/stpc/clean_data/list/test.txt"
-    dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
+    data_file = "/home/stpc/clean_data/list/custom_test.txt"
+    dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
     if model_type == "pixor":
         model = PIXOR(config["data"]["kitti"]["geometry"])

@@ -149,13 +149,9 @@ class HotSpotLoss(nn.Module):
         cls_pred = pred["cls_map"]
         reg_pred = pred["reg_map"]
         quad_pred = pred["quad_map"]
-        xargmin_pred = pred["x"]
-        yargmin_pred= pred["y"]
         cls_target = target["cls_map"]
         reg_target = target["reg_map"]
         hotspot_mask = target["hotspot_mask"]
-        xargmin_target = target["xargmin"]
-        yargmin_target = target["yargmin"]
         quad_target = target["quad_map"]
 
         idxs = hotspot_mask == 1
@@ -170,24 +166,15 @@ class HotSpotLoss(nn.Module):
         hotspot_idxs = (cls_target * hotspot_mask) > 0
         hotspot_num = hotspot_idxs.nonzero().shape[0]
         quad = torch.zeros(1, quad_pred.shape[1], hotspot_num)
-        xargmin = torch.zeros(1, xargmin_pred.shape[1], hotspot_num)
-        yargmin = torch.zeros(1, yargmin_pred.shape[1], hotspot_num)
-
         quad = quad.to(self.device)
-        xargmin = xargmin.to(self.device)
-        yargmin = yargmin.to(self.device)
+
 
 
         for i in range(quad.shape[1]):
             quad[0, i, :] = quad_pred[:, i, :, :][hotspot_idxs]
-        for i in range(xargmin.shape[1]):
-            xargmin[0, i, :] = xargmin_pred[:, i, :, :][hotspot_idxs]
-        for i in range(yargmin.shape[1]):
-            yargmin[0, i, :] = yargmin_pred[:, i, :, :][hotspot_idxs]
+
 
         quad_loss = focal_loss(quad, quad_target[hotspot_idxs].view(1, -1), self.alpha, self.gamma, self.reduction, None)
-        xargmin_loss = focal_loss(xargmin, xargmin_target[hotspot_idxs].view(1, -1), self.alpha, self.gamma, self.reduction, None)
-        yargmin_loss = focal_loss(yargmin, yargmin_target[hotspot_idxs].view(1, -1), self.alpha, self.gamma, self.reduction, None)
       
         mask = torch.zeros(cls_target.shape, dtype = torch.int16)
         mask = mask.to(self.device)
@@ -201,7 +188,7 @@ class HotSpotLoss(nn.Module):
             loss = cls_loss
             loc_loss = torch.tensor([0])
         else:
-            loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean') + xargmin_loss + yargmin_loss
+            loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
             loss = cls_loss + loc_loss + quad_loss
 
         return loss, cls_loss.item(), loc_loss.item(), quad_loss.item()

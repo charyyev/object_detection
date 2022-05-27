@@ -2,12 +2,12 @@
     "model": "mobilepixor",
     "date": "25-05-2022",
     "ver": 1,
-    "note": "overfit",
+    "note": "hotspot",
     "strategy": "hotspot",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": false,
-    "resume_from": 495,
+    "resume_training": true,
+    "resume_from": 115,
     "data":
     {
         "c": 32,
@@ -116,21 +116,21 @@
     },
     "train": 
     {
-        "batch_size": 2,
+        "batch_size": 4,
         "learning_rate": 0.01,
-        "epochs": 1500,
+        "epochs": 3000,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [2000, 3000],
+        "lr_decay_at": [2500, 3000],
         "save_every": 5,
-        "data": "/home/stpc/clean_data/list/overfit1.txt"
+        "data": "/home/stpc/clean_data/list/train.txt"
         
     },
     "val": 
     {
-        "batch_size": 2,
-        "data": "/home/stpc/clean_data/list/overfit1.txt",
-        "val_every": 200000
+        "batch_size": 4,
+        "data": "/home/stpc/clean_data/list/val.txt",
+        "val_every": 5
     },
     "loss":
     {
@@ -146,19 +146,19 @@
         "p": 0.5,
         "rotation":
         {
-            "use": false,
+            "use": true,
             "limit_angle": 20,
             "p": 1
         },
         "scaling":
         {
-            "use": false,
+            "use": true,
             "range": [0.95, 1.05],
             "p": 1
         },
         "translation":
         {
-            "use": false,
+            "use": true,
             "scale": 0.4,
             "p": 1
         }

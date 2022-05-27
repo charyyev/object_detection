@@ -63,7 +63,6 @@ class HotSpotDataset(Dataset):
                 "voxel": self.scan, 
                 "reg_map": target["reg_map"],
                 "cls_map": target["cls_map"],
-                "argmin_map": target["argmin_map"],
                 "quad_map": target["quad_map"],
                 "hotspot_mask": target["hotspot_mask"],
                 "cls_list": class_list,
@@ -76,7 +75,6 @@ class HotSpotDataset(Dataset):
             "voxel": self.scan,
             "reg_map": target["reg_map"],
             "cls_map": target["cls_map"],
-            "argmin_map": target["argmin_map"],
             "quad_map": target["quad_map"],
             "hotspot_mask": target["hotspot_mask"],
             }
@@ -157,19 +155,18 @@ class HotSpotDataset(Dataset):
         :return: label map: <--- This is the learning target
                 a tensor of shape 200 * 175 * 6 representing the expected output
         '''
-        reg_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1], 4), dtype=np.float32)
+        reg_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1], 6), dtype=np.float32)
         cls_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
-        x_argmin_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
-        y_argmin_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
+        # x_argmin_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
+        # y_argmin_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         quad_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         hotspot_mask = np.ones((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         for i in range(boxes.shape[0]):
-            self.update_label_map(reg_map, cls_map, x_argmin_map, y_argmin_map, quad_map, hotspot_mask, boxes[i], geometry)
+            self.update_label_map(reg_map, cls_map, quad_map, hotspot_mask, boxes[i], geometry)
 
         target = {
             "reg_map": reg_map,
             "cls_map": cls_map,
-            "argmin_map": [x_argmin_map, y_argmin_map],
             "quad_map": quad_map,
             "hotspot_mask": hotspot_mask
         }
@@ -201,7 +198,7 @@ class HotSpotDataset(Dataset):
         return bev_corners, reg_target
 
 
-    def update_label_map(self, reg_map, cls_map, x_argmin_map, y_argmin_map, quad_map, hotspot_mask, box, geometry):
+    def update_label_map(self, reg_map, cls_map, quad_map, hotspot_mask, box, geometry):
         bev_corners, reg_target = self.get_corners(box)
         cls, h, w, l, cx, cy, cz, yaw = box
 
@@ -233,23 +230,15 @@ class HotSpotDataset(Dataset):
                 label_y = p[1]
                 metric_x, metric_y = trasform_label2metric(np.array(p), geometry)
                 if self.is_hotspot(label_x * 4, label_y * 4, z_min, z_max):
-                    #actual_reg_target = np.copy(reg_target)
-                    actual_reg_target = np.zeros(4)
-                    actual_reg_target[0] = reg_target[0]
-                    actual_reg_target[1] = reg_target[1]
-                    actual_reg_target[2] = np.log(reg_target[4])
-                    actual_reg_target[3] = np.log(reg_target[5])
+                    actual_reg_target = np.copy(reg_target)
+                    actual_reg_target[2] = reg_target[2] - metric_x
+                    actual_reg_target[3] = reg_target[3] - metric_y
+                    actual_reg_target[4] = np.log(reg_target[4])
+                    actual_reg_target[5] = np.log(reg_target[5])
 
                     cls_map[label_y, label_x] = cls
                     reg_map[label_y, label_x] = actual_reg_target
                     
-                    # argmin softmax
-                    bin_res = (self.config["bin_max"] - self.config["bin_min"]) / self.config["num_bin"]
-                    dx = reg_target[2] - metric_x
-                    dy = reg_target[3] - metric_y
-                    x_argmin_map[label_y, label_x] = (dx - self.config["bin_min"]) // bin_res
-                    y_argmin_map[label_y, label_x] = (dy - self.config["bin_min"]) // bin_res
-
 
                     # quadrant
                     min_dist = 10000
