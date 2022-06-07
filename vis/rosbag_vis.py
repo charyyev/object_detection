@@ -241,21 +241,24 @@ class Vis():
 
 
 if __name__ == "__main__":
-    bag_file = "/home/stpc/stpc_ws/data/rosbag_recorder/scripts/city_ori_xt.bag"
+    bag_file = "/home/stpc/rosbags/route2.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
     with open("/home/stpc/proj/object_detection/configs/mobilepixor.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/724epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/754epoch"
     #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"
     device = "cuda:0"
     data_type = "custom"
     model_type = "mobilepixor"
     geometry = config["data"][data_type]["geometry"]
     
+    max_frames = 5000
     bag = rosbag.Bag(bag_file)
     lidar_topics = ["/points_raw"]
     frames = []
     for topic, msg, t in bag.read_messages():
+        if len(frames) > max_frames:
+            break
         if topic in lidar_topics:
             frames.append(pcl_to_numpy(msg))
 

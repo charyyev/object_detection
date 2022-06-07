@@ -11,11 +11,11 @@ def split(datas, percents, save_folder):
         val_len = train_len // 8
 
         train_set = lidar_files[:train_len]
-        val_set = lidar_files[train_len: train_len + val_len]
-        test_set = lidar_files[train_len + val_len: train_len + 2 * val_len]
-        write_to_file(os.path.join(save_folder, "custom_test.txt"), train_set, data)
-        #write_to_file(os.path.join(save_folder, "train.txt"), train_set, data)
-        #write_to_file(os.path.join(save_folder, "val.txt"), val_set, data)
+        val_set = lidar_files[train_len: min(train_len + val_len, len(lidar_files))]
+        #test_set = lidar_files[train_len + val_len: min(train_len + 2 * val_len, len(lidar_files))]
+        #write_to_file(os.path.join(save_folder, "custom_test.txt"), train_set, data)
+        write_to_file(os.path.join(save_folder, "mostly_nuscenes_train.txt"), train_set, data)
+        write_to_file(os.path.join(save_folder, "mostly_nuscenes_val.txt"), val_set, data)
         #write_to_file(os.path.join(save_folder, "test.txt"), test_set, data)
 
     
@@ -36,11 +36,12 @@ if __name__ == "__main__":
     #save_folder = "/home/stpc/data/train"
     datas = {"lyft": "/home/stpc/clean_data/lyft/pointcloud",
              "kitti": "/home/stpc/clean_data/kitti/pointcloud",
-             "nuscenes": "/home/stpc/clean_data/nuscenes/pointcloud"
+             "nuscenes": "/home/stpc/clean_data/nuscenes/pointcloud",
+             "small_robot": "/home/stpc/clean_data/small_robot/pointcloud"
     }
-    percents = {"kitti": 15, "lyft": 15, "nuscenes": 15}
-    datas = {"custom": "/home/stpc/clean_data/custom/pointcloud"}
-    percents = {"custom": 100}
+    percents = {"kitti": 15, "lyft": 15, "nuscenes": 80, "small_robot": 80}
+    #datas = {"custom": "/home/stpc/clean_data/custom/pointcloud"}
+    #percents = {"custom": 100}
     save_folder = "/home/stpc/clean_data/list"
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)

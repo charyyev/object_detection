@@ -173,9 +173,9 @@ class Vis():
 
 
 if __name__ == "__main__":
-    data_file = "/home/stpc/clean_data/list/val.txt"
-    data_file = "/home/stpc/clean_data/list/train_small.txt"
-    with open("/home/stpc/proj/object_detection/configs/small_dataset.json", 'r') as f:
+    data_file = "/home/stpc/clean_data/list/overfit1.txt"
+    #data_file = "/home/stpc/clean_data/list/train_small.txt"
+    with open("/home/stpc/proj/object_detection/configs/more_classes.json", 'r') as f:
         config = json.load(f)
 
     dataset = Dataset(data_file, config["data"], config["augmentation"], "val")

@@ -60,9 +60,18 @@ class Vis():
         return colors
 
     def read_bbox(self, label_path):
-        object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
+        #object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
         #object_list = {'car': 1, 'pedestrian':2, 'person_sitting':2, 'bicycle':3}
         #object_list = {'vehicle.car': 1}
+        object_list = {
+            "Car": 1, 
+            "Pedestrian": 2, 
+            "Bicycle": 3,
+            "Motorcycle": 3,
+            "Scooter": 3,
+            "Truck": 4,
+            "Bus": 4
+        }
 
         corner_list = []
         class_list = []
@@ -119,7 +128,7 @@ class Vis():
 
 
     def plot_boxes(self, class_list, boxes):
-        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3:np.array([0, 0, 1, 1])}
+        object_colors = {1: np.array([1, 0, 0, 1]), 2: np.array([0, 1, 0, 1]), 3 : np.array([0, 0, 1, 1]), 4: np.array([1, 1, 0, 1])}
         connect = []
         points = []
         colors = []
@@ -166,7 +175,7 @@ class Vis():
         
 
         colors = self.get_point_color_using_intensity(points)
-        
+        #colors = [0, 1,0 ]
         self.canvas.title = f"Frame: {self.index} / {len(self.lidar_paths)} - {lidar_path}"
         self.scan_vis.set_data(points[:, :3],
                             face_color=colors,
@@ -204,10 +213,11 @@ class Vis():
 
 
 if __name__ == "__main__":
-    data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
-    label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
+    #data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
+    #label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
     #data_folder = "/home/stpc/clean_data/kitti/pointcloud/"
     #label_folder = "/home/stpc/clean_data/kitti/label/"
-    
+    data_folder = "/home/stpc/clean_data/small_robot/pointcloud"
+    label_folder = "/home/stpc/clean_data/small_robot/label"
     vis = Vis(data_folder, label_folder)
     vis.run()

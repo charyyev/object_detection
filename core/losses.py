@@ -13,7 +13,7 @@ def focal_loss(
     alpha: float,
     gamma: float = 2.0,
     reduction: str = 'none',
-    alphas = [0.05, 0.15, 0.8, 0.8]
+    alphas = [0.05, 0.15, 0.8, 0.8, 0.15]
 ) -> torch.Tensor:
 
     if not isinstance(input, torch.Tensor):

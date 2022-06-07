@@ -31,18 +31,20 @@ DUMMY_FIELD_PREFIX = '__'
 #input: pointcloud2 message
 #return Nx4 numpy array
 
-def pcl_to_numpy(msg):
+def pcl_to_numpy(msg, num_fields = 4):
     header = msg.header
     current_time = header.stamp.to_sec()
 
     #convert pointcloud to numpy structured array
     points = pointcloud2_to_array(msg)
-    arr = np.zeros((len(points), 4) )
+    arr = np.zeros((len(points), num_fields) )
     
+    if num_fields > 3:
+        arr[:, 3] = points['intensity']
     arr[:, 0] = points['x']
     arr[:, 1] = points['y']
     arr[:, 2] = points['z']
-    arr[:, 3] = points['intensity']
+    
     
     return arr
 

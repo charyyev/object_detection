@@ -16,6 +16,7 @@ from vispy.scene.visuals import Text
 class Vis():
     def __init__(self, bag_name, save_location, frames):
         self.index = 0
+        self.count = 0
         self.frames = frames
         self.bag_name = bag_name
         self.save_location = save_location
@@ -64,7 +65,7 @@ class Vis():
             return
 
         points = self.frames[self.index]
-        colors = self.get_point_color_using_intensity(points)
+        #colors = self.get_point_color_using_intensity(points)
         colors = np.array([0, 1, 1])
         if not self.paused:
             self.index += 1
@@ -77,8 +78,9 @@ class Vis():
 
     def save_frame(self):
         points = self.frames[self.index]
-        filename = self.bag_name + "_" + '%06d' % self.index + ".bin"
+        filename = self.bag_name + "_" + '%06d' % self.count + ".bin"
         points.astype("float32").tofile(os.path.join(self.save_location, filename))
+        self.count += 1
 
     def extract_bag(self):
         bag = rosbag.Bag(self.bag_file)
@@ -142,16 +144,20 @@ class Vis():
 
 
 if __name__ == "__main__":
-    bag_file = "/home/stpc/stpc_ws/data/rosbag_recorder/scripts/city_ori_xt.bag"
-    bag_name = bag_file.split("/")[-1].split(".")[0]
-    save_location = "/home/stpc/clean_data/custom/pointcloud"
+    #bag_file = "/home/stpc/stpc_ws/data/rosbag_recorder/scripts/city_ori_xt.bag"
+    bag_file = "/home/stpc/rosbags/route3.bag"
+    #bag_name = bag_file.split("/")[-1].split(".")[0]
+    bag_name = "route3"
+    save_location = "/home/stpc/clean_data/small_robot/pointcloud"
+
+    num_fields = 4
     
     bag = rosbag.Bag(bag_file)
     lidar_topics = ["/points_raw"]
     frames = []
     for topic, msg, t in bag.read_messages():
         if topic in lidar_topics:
-            frames.append(pcl_to_numpy(msg))
+            frames.append(pcl_to_numpy(msg, num_fields))
 
     print("Done reading frames: ", len(frames), "frames in total")
 

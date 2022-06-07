@@ -322,7 +322,7 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/hotspot.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_hotspot_25-05-2022_1/checkpoints/290epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_hotspot_25-05-2022_1/best_checkpoints/304epoch"
 
     data_file = "/home/stpc/clean_data/list/custom_test.txt"
     dataset = HotSpotDataset(data_file, config["data"], config["augmentation"], "test")
