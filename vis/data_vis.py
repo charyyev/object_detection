@@ -91,8 +91,23 @@ class Vis():
 
     def get_corners(self, bbox):
         h, w, l, x, y, z, yaw = bbox[1:]
+        #x, y, z, min_x, min_y, min_z, max_x, max_y, max_z, _ = bbox[1:]
+        #h = max_z - min_z
+        #w = max_y - min_y
+        #l = max_x - min_x
         #yaw = -yaw
         #yaw = -(yaw + np.pi / 2)
+        # corners = [[max_x, max_y, max_z],
+        #            [max_x, max_y, min_z],
+        #            [max_x, min_y, min_z],
+        #            [max_x, min_y, max_z],
+        #            [min_x, max_y, max_z],
+        #            [min_x, max_y, min_z],
+        #            [min_x, min_y, min_z],
+        #            [min_x, min_y, max_z]]
+
+        # corners = np.array(corners)
+
 
         corners = []
         front = l / 2
@@ -172,11 +187,11 @@ class Vis():
         label_path = self.label_paths[self.index]
         points = self.read_points(lidar_path)
         class_list, boxes = self.read_bbox(label_path)
-        
 
         colors = self.get_point_color_using_intensity(points)
-        #colors = [0, 1,0 ]
-        self.canvas.title = f"Frame: {self.index} / {len(self.lidar_paths)} - {lidar_path}"
+        #colors = [0, 1,1 ]
+        #self.canvas.title = f"Frame: {self.index} / {len(self.lidar_paths)} - {lidar_path}"
+        self.canvas.title = lidar_path.split("/")[-1]
         self.scan_vis.set_data(points[:, :3],
                             face_color=colors,
                             edge_color=colors,
@@ -213,11 +228,11 @@ class Vis():
 
 
 if __name__ == "__main__":
-    #data_folder = "/home/stpc/data/nuscenes/kitti/velodyne/"
-    #label_folder = "/home/stpc/data/nuscenes/kitti/label_2/"
+    data_folder = "/home/stpc/data/auto/pointcloud"
+    label_folder = "/home/stpc/data/auto/label"
     #data_folder = "/home/stpc/clean_data/kitti/pointcloud/"
     #label_folder = "/home/stpc/clean_data/kitti/label/"
-    data_folder = "/home/stpc/clean_data/small_robot/pointcloud"
-    label_folder = "/home/stpc/clean_data/small_robot/label"
+    #data_folder = "/home/stpc/clean_data/small_robot/pointcloud"
+    #label_folder = "/home/stpc/clean_data/small_robot/label"
     vis = Vis(data_folder, label_folder)
     vis.run()

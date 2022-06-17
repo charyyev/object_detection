@@ -243,12 +243,12 @@ class Vis():
 if __name__ == "__main__":
     bag_file = "/home/stpc/rosbags/route2.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
-    with open("/home/stpc/proj/object_detection/configs/mobilepixor.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/fine_tune.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/754epoch"
+    model_path = "/home/stpc/experiments/mobilepixor__18-05-2022_1/checkpoints/50epoch"
     #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"
     device = "cuda:0"
-    data_type = "custom"
+    data_type = "small_robot"
     model_type = "mobilepixor"
     geometry = config["data"][data_type]["geometry"]
     

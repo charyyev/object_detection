@@ -11,6 +11,8 @@ import numpy as np
 from shapely.geometry import Polygon
 import json
 
+import torch.nn.functional as F
+
 def convert_format(boxes_array):
     """
 
@@ -130,6 +132,52 @@ def filter_pred(reg_pred, cls_pred, config, score_threshold, nms_threshold):
                       l[selected_idxs], 
                       w[selected_idxs], 
                       yaw[selected_idxs]])
+    boxes = np.swapaxes(boxes, 0, 1)
+
+    return boxes
+
+def filter_pred_nms_free(reg_pred, cls_pred, config, score_threshold, nms_threshold):
+    geometry = config["geometry"]
+
+    ratio = 4
+    reg_pred = reg_pred[0].detach()
+    cls_pred = cls_pred[0].detach()
+    cos_t, sin_t, dx, dy, log_w, log_l = torch.chunk(reg_pred, 6, dim=0)
+
+    cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
+
+    idxs = torch.logical_or(cls_probs < score_threshold, cls_ids == 0)
+    # make background and low probability detections 0 
+    cls_probs[idxs] = 0
+   
+    pooled = F.max_pool2d(cls_probs.unsqueeze(0), 3, 1, 1).squeeze()
+    selected_idxs = torch.logical_and(cls_probs == pooled, cls_probs > 0)
+
+    y = torch.arange(geometry["label_shape"][0])
+    x = torch.arange(geometry["label_shape"][1])
+
+    xx, yy = torch.meshgrid(x, y, indexing="xy")
+    xx = xx.to(reg_pred.device)
+    yy = yy.to(reg_pred.device)
+
+    center_y = dy + yy * ratio * geometry["y_res"] + geometry["y_min"]
+    center_x = dx + xx * ratio * geometry["x_res"] + geometry["x_min"]
+    center_x = center_x.squeeze()
+    center_y = center_y.squeeze()
+    l = torch.exp(log_l).squeeze()
+    w = torch.exp(log_w).squeeze()
+    yaw2 = torch.atan2(sin_t, cos_t).squeeze()
+    yaw = yaw2 / 2
+
+
+    boxes = np.stack([cls_ids[selected_idxs].numpy(), 
+                      cls_probs[selected_idxs].numpy(), 
+                      center_x[selected_idxs].numpy(), 
+                      center_y[selected_idxs].numpy(), 
+                      l[selected_idxs].numpy(), 
+                      w[selected_idxs].numpy(), 
+                      yaw[selected_idxs].numpy()])
+    #print(boxes.shape)
     boxes = np.swapaxes(boxes, 0, 1)
 
     return boxes

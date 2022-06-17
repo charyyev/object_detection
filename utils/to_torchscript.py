@@ -18,7 +18,7 @@ if __name__ == "__main__":
                 "label_shape": [200, 175, 6]
             }
     
-    model_path = "/home/stpc/experiments/mobilepixor_first_18-05-2022_1/best_checkpoints/754epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
 
     data_file = "/home/stpc/clean_data/list/test.txt"
     model_type = "mobilepixor"
@@ -34,4 +34,4 @@ if __name__ == "__main__":
     scripted_model = torch.jit.script(model)
 
     print(scripted_model.code)
-    scripted_model.save("/home/stpc/models/mobilepixor.pt")
+    scripted_model.save("/home/stpc/models/mobilepixor_nms_free.pt")

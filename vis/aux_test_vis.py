@@ -18,7 +18,7 @@ from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
 from core.models.pixor import PIXOR
-from core.models.mobilepixor import MobilePIXOR
+from core.models.mobilepixor_aux import MobilePIXOR
 
 class Vis():
     def __init__(self, data_loader, model, config, task = "val"):
@@ -52,12 +52,13 @@ class Vis():
 
         self.canvas1 = SceneCanvas(keys='interactive',
                                 show=True,
-                                size=(200, 175))
+                                size=(400, 350))
         self.canvas1.events.key_press.connect(self._key_press)
         self.canvas1.events.draw.connect(self._draw)
 
         self.view = self.canvas1.central_widget.add_view()
         self.image = vispy.scene.visuals.Image(parent=self.view.scene)
+        self.image1 = vispy.scene.visuals.Image(parent=self.view.scene)
 
         self.update_scan()
 
@@ -224,6 +225,7 @@ class Vis():
         voxel = data["voxel"]
         pred = self.model(voxel)
         pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
+        occupancy_map = F.sigmoid(pred["occupancy_map"]).squeeze()
         reg_pred = pred["reg_map"].detach().cpu().numpy()
         cls_pred = pred["cls_map"].detach().cpu().numpy()
         boxes = filter_pred(reg_pred, cls_pred, self.config[data["dtype"][0]], score_threshold=0.1, nms_threshold=0.8)
@@ -285,7 +287,21 @@ class Vis():
         color_img[:, :, 0][cls_map == 5] = 0
         color_img[:, :, 1][cls_map == 5] = 1
         color_img[:, :, 2][cls_map == 5] = 1
-        self.image.set_data(np.swapaxes(color_img, 0, 1))
+
+        color_img1 = np.zeros((occupancy_map.shape[0], occupancy_map.shape[1], 3))
+
+        color_img1[:, :, 0][occupancy_map > 0.5] = 1
+
+        img = np.concatenate((color_img, color_img1), axis = 1)
+
+        self.image.set_data(np.swapaxes(img, 0, 1))
+
+
+        
+        #color_img[:, :, 1][occupancy_map > 0.5 ] = 0
+        #color_img[:, :, 2][occupancy_map > 0.5] = 0
+
+        #self.image1.set_data(np.swapaxes(color_img1, 0, 1))
 
 
     def _key_press(self, event):
@@ -323,12 +339,12 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/self_training.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/aux.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_self_training_16-06-2022_2/checkpoints/30epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_overfit_17-06-2022_1/checkpoints/100epoch"
     model_type = "mobilepixor"
 
-    data_file = "/home/stpc/clean_data/list/self_train.txt"
+    data_file = "/home/stpc/clean_data/list/overfit1.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
     if model_type == "pixor":

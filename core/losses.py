@@ -36,19 +36,23 @@ def focal_loss(
     # compute softmax over the classes axis
     input_soft: torch.Tensor = F.softmax(input, dim=1)
     log_input_soft: torch.Tensor = F.log_softmax(input, dim=1)
-
+   
     # create the labels one hot tensor
     target_one_hot: torch.Tensor = one_hot(target, num_classes=input.shape[1], device=input.device, dtype=input.dtype)
 
     # compute the actual focal loss
     weight = torch.pow(-input_soft + 1.0, gamma)
+
     focal = -alpha * weight * log_input_soft
     #focal = -log_input_soft
-    if alphas is not None:
+    
+    if int(alphas[0]) != 1:
         for i in range(len(alphas)):
             focal[:, i, ...] *= alphas[i] 
+    
+    #print(target_one_hot)
     loss_tmp = torch.einsum('bc...,bc...->b...', (target_one_hot, focal))
-
+    #print(loss_tmp.shape)
     if reduction == 'none':
         loss = loss_tmp
     elif reduction == 'mean':
@@ -57,6 +61,7 @@ def focal_loss(
         loss = torch.sum(loss_tmp)
     else:
         raise NotImplementedError(f"Invalid reduction mode: {reduction}")
+
     return loss
 
 
@@ -115,7 +120,7 @@ class CustomLoss(nn.Module):
         for i in range(cls_pred.shape[1]):
             cls[0, i, :] = cls_pred[:, i, :, :][idxs]
        
-        fc_loss = focal_loss(cls, cls_target[submap_target == 1].view(1, -1), self.alpha, self.gamma, self.reduction)
+        fc_loss = focal_loss(cls, cls_target[submap_target == 1].view(1, -1), self.alpha, self.gamma, self.reduction, alphas = [1, 1, 1, 1, 1])
       
         mask = torch.zeros(cls_target.shape, dtype = torch.int16)
         mask = mask.to(self.device)
@@ -192,6 +197,52 @@ class HotSpotLoss(nn.Module):
             loss = cls_loss + loc_loss + quad_loss
 
         return loss, cls_loss.item(), loc_loss.item(), quad_loss.item()
+
+
+class AuxLoss(nn.Module):
+    def __init__(self, config, device) -> None:
+        super().__init__()
+        self.alpha: float = config["alpha"]
+        self.gamma: float = config["gamma"]
+        self.reduction: str = config["reduction"]
+        self.device = device
+
+    def forward(self, pred, target):
+        cls_pred = pred["cls_map"]
+        reg_pred = pred["reg_map"]
+        occupancy_pred = pred["occupancy_map"]
+        cls_target = target["cls_map"]
+        reg_target = target["reg_map"]
+        submap_target = target["sub_map"]
+        occupancy_target = target["occupancy_map"]
+
+        
+        idxs = submap_target == 1
+        num = idxs.nonzero().shape[0]
+        cls = torch.zeros(1, cls_pred.shape[1], num)
+        cls = cls.to(self.device)
+        for i in range(cls_pred.shape[1]):
+            cls[0, i, :] = cls_pred[:, i, :, :][idxs]
+    
+        fc_loss = focal_loss(cls, cls_target[submap_target == 1].view(1, -1), self.alpha, self.gamma, self.reduction)
+        #occupancy_loss = focal_loss(occupancy_pred, occupancy_target, self.alpha, self.gamma, self.reduction, alphas = [1, 1, 1, 1, 1])
+        occupancy_loss = F.binary_cross_entropy_with_logits(occupancy_pred, occupancy_target)
+
+        mask = torch.zeros(cls_target.shape, dtype = torch.int16)
+        mask = mask.to(self.device)
+
+        mask[torch.logical_and(cls_target > 0, submap_target == 1)] = 1
+        mask = torch.unsqueeze(mask, 1).repeat(1, reg_pred.shape[1], 1, 1)
+        num_pixels = torch.sum(mask)
+
+        if num_pixels <= 0:
+            loss = fc_loss
+            loc_loss = torch.tensor([0])
+        else:
+            loc_loss = F.smooth_l1_loss(reg_pred[mask == 1], reg_target[mask == 1], reduction='mean')
+            loss = 2 * fc_loss + loc_loss + 0.1 * occupancy_loss
+
+        return loss, fc_loss.item(), loc_loss.item(), occupancy_loss.item()
 
 if __name__ == "__main__":
     input = torch.ones((2, 4, 5))

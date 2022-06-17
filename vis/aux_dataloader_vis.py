@@ -8,7 +8,7 @@ from vispy.scene import SceneCanvas
 import json
 
 from utils.preprocess import voxelize, voxel_to_points
-from core.dataset import Dataset
+from core.aux_dataset import Dataset
 
 
 class Vis():
@@ -37,7 +37,8 @@ class Vis():
         self.canvas1.events.draw.connect(self._draw)
 
         self.view = self.canvas1.central_widget.add_view()
-        self.image = vispy.scene.visuals.Image(parent=self.view.scene)
+        #self.image = vispy.scene.visuals.Image(parent=self.view.scene)
+        self.image1 = vispy.scene.visuals.Image(parent=self.view.scene)
 
         
 
@@ -110,6 +111,7 @@ class Vis():
         class_list = data["cls_list"]
         boxes = data["boxes"]
         cls_map = data["cls_map"]
+        occupancy_map = data["occupancy_map"]
 
         data_type = data["dtype"]
         points = voxel_to_points(voxel, dataset.config[data_type]["geometry"])
@@ -142,7 +144,15 @@ class Vis():
         color_img[:, :, 2][sub_map == 0] = 1
         
 
-        self.image.set_data(np.swapaxes(color_img, 0, 1))
+        #self.image.set_data(np.swapaxes(color_img, 0, 1))
+
+        color_img = np.zeros((occupancy_map.shape[0], occupancy_map.shape[1], 3))
+
+        color_img[:, :, 0][occupancy_map == 1] = 1
+        color_img[:, :, 1][occupancy_map == 1] = 0
+        color_img[:, :, 2][occupancy_map == 1] = 0
+
+        self.image1.set_data(np.swapaxes(color_img, 0, 1))
 
 
     def _key_press(self, event):
@@ -173,7 +183,7 @@ class Vis():
 
 
 if __name__ == "__main__":
-    data_file = "/home/stpc/clean_data/list/self_train.txt"
+    data_file = "/home/stpc/clean_data/list/mostly_nuscenes_train.txt"
     #data_file = "/home/stpc/clean_data/list/train_small.txt"
     with open("/home/stpc/proj/object_detection/configs/self_training.json", 'r') as f:
         config = json.load(f)

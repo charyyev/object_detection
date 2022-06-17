@@ -52,8 +52,9 @@ class Dataset(Dataset):
         scan = self.voxelize(points, self.config[data_type]["geometry"])
         scan = torch.from_numpy(scan)
         scan = scan.permute(2, 0, 1)
-        reg_map, cls_map, sub_map = self.get_label(boxes, self.config[data_type]["geometry"])
+        reg_map, cls_map, sub_map, occupancy_map = self.get_label(boxes, self.config[data_type]["geometry"])
         reg_map = torch.from_numpy(reg_map).permute(2, 0, 1)
+        occupancy_map = torch.from_numpy(occupancy_map).unsqueeze(0)
         if self.task == "val":
             class_list, boxes = self.read_bbox(boxes)
     
@@ -64,13 +65,15 @@ class Dataset(Dataset):
                     "points": points,
                     "boxes": boxes,
                     "dtype": data_type,
-                    "sub_map": sub_map
+                    "sub_map": sub_map,
+                    "occupancy_map": occupancy_map
                 }   
 
         return {"voxel": scan, 
                 "reg_map": reg_map,
                 "cls_map": cls_map,
-                "sub_map": sub_map
+                "sub_map": sub_map,
+                "occupancy_map": occupancy_map
             }
 
             
@@ -149,13 +152,15 @@ class Dataset(Dataset):
         reg_map = np.zeros(geometry['label_shape'], dtype=np.float32)
         cls_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int64)
         sub_map = np.ones((geometry['label_shape'][0], geometry['label_shape'][1]), dtype = np.int16)
+        occupancy_map = np.zeros((geometry['label_shape'][0], geometry['label_shape'][1]))
         for i in range(boxes.shape[0]):
             box = boxes[i]
             corners, reg_target = self.get_corners(box)
-            self.update_label_map(reg_map, cls_map, sub_map, corners, reg_target, int(box[0]), geometry)
+            aux_corners = self.get_corners_aux(box)
+            self.update_label_map(reg_map, cls_map, sub_map, occupancy_map, corners, aux_corners, reg_target, int(box[0]), geometry)
             self.update_sub_mask(sub_map, box, geometry)
 
-        return reg_map, cls_map, sub_map
+        return reg_map, cls_map, sub_map, occupancy_map
 
 
     def get_corners(self, bbox):
@@ -189,10 +194,33 @@ class Dataset(Dataset):
         reg_target = [np.cos(yaw2), np.sin(yaw2), x, y, fw, fl]
 
         return bev_corners, reg_target
+
+    def get_corners_aux(self, bbox):
+        cls, h, w, l, x, y, z, yaw = bbox
+        yaw2 = math.fmod(2 * yaw, 2 * math.pi)
+        bev_corners = np.zeros((4, 2), dtype=np.float32)
+
+        # rear left
+        bev_corners[0, 0] = x - l/2 * np.cos(yaw) - w/2 * np.sin(yaw)
+        bev_corners[0, 1] = y - l/2 * np.sin(yaw) + w/2 * np.cos(yaw)
+
+        # rear right
+        bev_corners[1, 0] = x - l/2 * np.cos(yaw) + w/2 * np.sin(yaw)
+        bev_corners[1, 1] = y - l/2 * np.sin(yaw) - w/2 * np.cos(yaw)
+
+        # front right
+        bev_corners[2, 0] = x + l/2 * np.cos(yaw) + w/2 * np.sin(yaw)
+        bev_corners[2, 1] = y + l/2 * np.sin(yaw) - w/2 * np.cos(yaw)
+
+        # front left
+        bev_corners[3, 0] = x + l/2 * np.cos(yaw) - w/2 * np.sin(yaw)
+        bev_corners[3, 1] = y + l/2 * np.sin(yaw) + w/2 * np.cos(yaw)
+
+        return bev_corners
         
 
 
-    def update_label_map(self, reg_map, cls_map, sub_map, bev_corners, reg_target, cls, geometry):
+    def update_label_map(self, reg_map, cls_map, sub_map, occupancy_map, bev_corners, aux_corners, reg_target, cls, geometry):
         label_corners = np.zeros((4, 2))
         label_corners[:, 0] = (bev_corners[:, 0] - geometry["x_min"]) / geometry["x_res"]
         label_corners[:, 1] = (bev_corners[:, 1] - geometry["y_min"]) / geometry["y_res"]
@@ -214,6 +242,20 @@ class Dataset(Dataset):
             reg_map[label_y, label_x] = actual_reg_target
             if int(cls) != 2:
                 sub_map[label_y, label_x] = 0
+
+        label_corners = np.zeros((4, 2))
+        label_corners[:, 0] = (aux_corners[:, 0] - geometry["x_min"]) / geometry["x_res"]
+        label_corners[:, 1] = (aux_corners[:, 1] - geometry["y_min"]) / geometry["y_res"]
+        label_corners /= 4
+
+        for p in points:
+            label_x = p[0]
+            label_y = p[1]
+
+            occupancy_map[label_y, label_x] = 1
+
+
+        
 
 
     def update_sub_mask(self, mask, box, geometry):

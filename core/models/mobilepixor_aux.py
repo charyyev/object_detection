@@ -169,7 +169,7 @@ class InvertedResidual(nn.Module):
 
 class BackBone(nn.Module):
 
-    def __init__(self, block, use_bn=True):
+    def __init__(self, block, geom, use_bn=True):
         super(BackBone, self).__init__()
 
         self.use_bn = use_bn
@@ -201,7 +201,7 @@ class BackBone(nn.Module):
 
         # Top-down layers
         self.deconv1 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, output_padding=1)
-        p = 0
+        p = 0 if geom['label_shape'][1] == 175 else 1
         self.deconv2 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=(1, p))
 
     def forward(self, x):
@@ -261,6 +261,7 @@ class Header(nn.Module):
 
         self.clshead = conv3x3(16, 5, bias=True)
         self.reghead = conv3x3(16, 6, bias=True)
+        self.occupancyhead = conv3x3(16, 1, bias=True)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -279,8 +280,8 @@ class Header(nn.Module):
         #cls = torch.sigmoid(self.clshead(x))
         cls = self.clshead(x)
         reg = self.reghead(x)
-
-        return cls, reg
+        occupancy = self.occupancyhead(x)
+        return cls, reg, occupancy
 
 
 class MobilePIXOR(nn.Module):
@@ -290,9 +291,9 @@ class MobilePIXOR(nn.Module):
     Note that we convert the dimensions to [C, H, W] for PyTorch's nn.Conv2d functions
     '''
 
-    def __init__(self, use_bn=True, decode=False):
+    def __init__(self, geom, use_bn=True, decode=False):
         super(MobilePIXOR, self).__init__()
-        self.backbone = BackBone(InvertedResidual, use_bn)
+        self.backbone = BackBone(InvertedResidual,  geom, use_bn)
         self.header = Header(use_bn)
         self.use_decode = decode
         
@@ -311,107 +312,15 @@ class MobilePIXOR(nn.Module):
         self.header.reghead.bias.data.fill_(0)
 
 
-    def forward(self, x, x_min: float, y_min: float, x_res: float, y_res: float, score_threshold: float):        
+    def forward(self, x):        
+        # x = x.permute(0, 3, 1, 2)
+        # Torch Takes Tensor of shape (Batch_size, channels, height, width)
+
         features = self.backbone(x)
-        cls, reg = self.header(features)
+        cls, reg, occupancy = self.header(features)
 
-        cls = torch.softmax(cls, dim = 1)
-
-        ratio = 4
-        reg_pred = reg[0].detach()
-        cls_pred = cls[0].detach()
-        cos_t, sin_t, dx, dy, log_w, log_l = torch.chunk(reg_pred, 6, dim=0)
-
-        cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
-
-        idxs = torch.logical_or(cls_probs < score_threshold, cls_ids == 0)
-        # make background and low probability detections 0 
-        cls_probs[idxs] = 0
-    
-        pooled = F.max_pool2d(cls_probs.unsqueeze(0), 3, 1, 1).squeeze()
-        selected_idxs = torch.logical_and(cls_probs == pooled, cls_probs > 0)
-
-        y = torch.arange(reg.shape[2])
-        x = torch.arange(reg.shape[3])
-
-        xx, yy = torch.meshgrid(x, y, indexing="xy")
-        xx = xx.to(reg_pred.device)
-        yy = yy.to(reg_pred.device)
-
-        center_y = dy + yy * ratio * y_res + y_min
-        center_x = dx + xx * ratio * x_res + x_min
-        center_x = center_x.squeeze()
-        center_y = center_y.squeeze()
-        l = torch.exp(log_l).squeeze()
-        w = torch.exp(log_w).squeeze()
-        yaw2 = torch.atan2(sin_t, cos_t).squeeze()
-        yaw = yaw2 / 2
-
-
-        boxes = torch.cat([cls_ids[selected_idxs].reshape(-1, 1), 
-                        cls_probs[selected_idxs].reshape(-1, 1), 
-                        center_x[selected_idxs].reshape(-1, 1), 
-                        center_y[selected_idxs].reshape(-1, 1), 
-                        l[selected_idxs].reshape(-1, 1), 
-                        w[selected_idxs].reshape(-1, 1), 
-                        yaw[selected_idxs].reshape(-1, 1)], dim = 1)
-
-        return boxes
-        #return torch.permute(boxes, (1, 0))
-        #print(boxes.shape)
-        #boxes = torch.permute(boxes, 0, 1)
-
-        # ratio = 4
-        # reg_pred = reg[0].detach()
-        # cls_pred = cls[0].detach()
-        # cos_t, sin_t, dx, dy, log_w, log_l = torch.chunk(reg_pred, 6, dim=0)
-
-        # cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
-
-        # idxs = torch.logical_and(cls_probs > score_threshold, cls_ids != 0)
-        # cls = cls_ids[idxs]
-        # scores = cls_probs[idxs]
-
-        # y = torch.arange(reg.shape[2])
-        # x = torch.arange(reg.shape[3])
-
-        # xx, yy = torch.meshgrid(x, y, indexing="xy")
-        # xx = xx.to(reg_pred.device)
-        # yy = yy.to(reg_pred.device)
-
-        # center_y = dy + yy * ratio * y_res + y_min
-        # center_x = dx + xx * ratio * x_res + x_min
-        # l = torch.exp(log_l)
-        # w = torch.exp(log_w)
-        # yaw2 = torch.atan2(sin_t, cos_t)
-        # yaw = yaw2 / 2
-
-        # cos_t = torch.cos(yaw)
-        # sin_t = torch.sin(yaw)
-
-        # rear_left_x = center_x - l/2 * cos_t - w/2 * sin_t
-        # rear_left_y = center_y - l/2 * sin_t + w/2 * cos_t
-        # rear_right_x = center_x - l/2 * cos_t + w/2 * sin_t
-        # rear_right_y = center_y - l/2 * sin_t - w/2 * cos_t
-        # front_right_x = center_x + l/2 * cos_t + w/2 * sin_t
-        # front_right_y = center_y + l/2 * sin_t - w/2 * cos_t
-        # front_left_x = center_x + l/2 * cos_t - w/2 * sin_t
-        # front_left_y = center_y + l/2 * sin_t + w/2 * cos_t
-
-        # decoded_reg = torch.concat([rear_left_x, rear_left_y, rear_right_x, rear_right_y,
-        #                         front_right_x, front_right_y, front_left_x, front_left_y], dim=0)
-        # decoded_reg = torch.swapaxes(decoded_reg, 0, 1)
-        # decoded_reg = torch.swapaxes(decoded_reg, 1, 2)
-        # decoded_reg = decoded_reg[idxs]
-        # #corners = torch.reshape(decoded_reg, (-1, 4, 2))
-        # corners = decoded_reg
-        # boxes = torch.cat([cls.reshape(-1, 1),
-        #                      scores.reshape(-1, 1),
-        #                      corners], dim = 1)
-
-        # return boxes
-
-        
+        return {"reg_map" : reg, "cls_map":cls, "occupancy_map": occupancy}
+        #return features
 
 if __name__ == "__main__":
     geom = {

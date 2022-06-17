@@ -19,7 +19,7 @@ from utils.postprocess import non_max_suppression
 from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
-from core.models.pixor_torchscript import PIXOR
+from core.models.mobilepixor_torchscript import MobilePIXOR
 
 
 class Vis():
@@ -233,7 +233,21 @@ class Vis():
         voxel = data["voxel"]
         voxel = voxel.half()
         voxel = voxel.to("cuda:0")
+        # boxes = self.model(voxel, x_min, y_min, x_res, y_res, 0.1).detach().cpu().numpy()
         pred = self.model(voxel, x_min, y_min, x_res, y_res, 0.1)
+        # print(boxes.shape)
+        # points = data["points"].squeeze().numpy()
+
+        # box_list = []
+        # class_list = []
+        # scores = []
+        # for i in range(boxes.shape[0]):
+        #     box = boxes[i]
+        #     box_list.append(self.get_corners(box))
+        #     class_list.append(box[0])
+        #     scores.append(box[1])
+
+        # print(class_list) 
         cls = pred[:, 0].detach().cpu().numpy()
         scores = pred[:, 1].detach().cpu().numpy()
         corners = pred[:, 2:].reshape(-1, 4, 2).detach().cpu().numpy()
@@ -312,15 +326,15 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/mixed_data.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/more_classes.json", 'r') as f:
         config = json.load(f)
-    #model_path = "/home/stpc/experiments/pixor_mixed_submap_21-04-2022_1/1319epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
 
-    data_file = "/home/stpc/clean_data/list/custom_test.txt"
+    data_file = "/home/stpc/clean_data/list/small_robot_train.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
-    # model = PIXOR()
+    # model = MobilePIXOR()
     # model.to(config['device'])
     # model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
     # device = config["device"]

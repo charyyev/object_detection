@@ -1,7 +1,6 @@
-from core.dataset import Dataset
-from core.models.pixor import PIXOR
-from core.models.mobilepixor import MobilePIXOR
-from core.losses import CustomLoss
+from core.aux_dataset import Dataset
+from core.models.mobilepixor_aux import MobilePIXOR
+from core.losses import AuxLoss
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -9,7 +8,7 @@ import torch
 import os
 import time
 
-class TrainAgent:
+class AuxAgent():
     def __init__(self, config):
         self.config = config
         self.device = config["device"]
@@ -31,34 +30,18 @@ class TrainAgent:
         momentum = self.config["train"]["momentum"]
         weight_decay = self.config["train"]["weight_decay"]
         lr_decay_at = self.config["train"]["lr_decay_at"]
-
-        if self.config["model"] == "pixor":
-            self.model = PIXOR(geometry)
-            print("training PIXOR")
-        elif self.config["model"] == "mobilepixor":
-            self.model = MobilePIXOR(geometry)
-            print("training MobilePIXOR")
-
-        for param in self.model.backbone.parameters():
-            param.requires_grad = False
+        self.model = MobilePIXOR(geometry)
 
         self.model.to(self.device)
-        self.loss = CustomLoss(self.config["loss"]["focal_loss"], self.config["device"])
-
-        if self.config["train"]["use_differential_learning"]:
-            dif_learning_rate = self.config["train"]["differential_learning_rate"]
-            self.optimizer = torch.optim.SGD([{'params': self.model.backbone.parameters(), 'lr': dif_learning_rate[1]},
-                                             {'params': self.model.header.parameters(), 'lr': dif_learning_rate[0]}], 
-                                             lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
-        
-        #self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+        self.loss = AuxLoss(self.config["loss"]["focal_loss"], self.config["device"])
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=lr_decay_at, gamma=0.1)
 
     def train_one_epoch(self, epoch):
         reg_loss = 0
         cls_loss = 0
         train_loss = 0
+        occupancy_loss = 0
         start_time = time.time()
         self.model.train()
         for data in self.train_loader:
@@ -66,19 +49,30 @@ class TrainAgent:
             cls_label = data["cls_map"].to(self.device)
             reg_label = data["reg_map"].to(self.device)
             submap = data["sub_map"].to(self.device)
+            occupancy_label = data["occupancy_map"].to(self.device)
 
+            target = {
+                "cls_map": cls_label,
+                "reg_map": reg_label,
+                "sub_map": submap,
+                "occupancy_map": occupancy_label
+            }
             self.optimizer.zero_grad()
+
             pred = self.model(voxel)
-            loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label, "sub_map": submap})
+            loss, cls, reg, occupancy = self.loss(pred, target)
+
             loss.backward()
             self.optimizer.step()
 
             cls_loss += cls
             reg_loss += reg
             train_loss += loss.item()
+            occupancy_loss += occupancy
 
         self.writer.add_scalar("cls_loss/train", cls_loss / len(self.train_loader), epoch)
         self.writer.add_scalar("reg_loss/train", reg_loss / len(self.train_loader), epoch)
+        self.writer.add_scalar("occupancy_loss/train", occupancy_loss / len(self.train_loader), epoch)
         self.writer.add_scalar("loss/train", train_loss / len(self.train_loader), epoch)
 
         print("Epoch {}|Time {}|Training Loss: {:.5f}".format(
@@ -93,14 +87,14 @@ class TrainAgent:
         self.make_experiments_dirs()
         self.writer = SummaryWriter(log_dir = self.runs_dir)
 
-        start_epoch = 0
+        start_epoch = 1
         if self.config["resume_training"]:
             model_path = os.path.join(self.checkpoints_dir, str(self.config["resume_from"]) + "epoch")
             self.model.load_state_dict(torch.load(model_path, map_location=self.config["device"]))
             start_epoch = self.config["resume_from"]
             print("successfully loaded model starting from " + str(self.config["resume_from"]) + " epoch") 
         
-        for epoch in range(start_epoch + 1, self.config["train"]["epochs"]):
+        for epoch in range(start_epoch, self.config["train"]["epochs"]):
             self.train_one_epoch(epoch)
 
             if epoch % self.config["train"]["save_every"] == 0:
@@ -117,6 +111,7 @@ class TrainAgent:
         reg_loss = 0
         cls_loss = 0
         val_loss = 0
+        occupancy_loss = 0
         start_time = time.time()
         self.model.eval()
         with torch.no_grad():
@@ -125,21 +120,28 @@ class TrainAgent:
                 cls_label = data["cls_map"].to(self.device)
                 reg_label = data["reg_map"].to(self.device)
                 submap = data["sub_map"].to(self.device)
+                occupancy_label = data["occupancy_map"].to(self.device)
+
+                target = {
+                    "cls_map": cls_label,
+                    "reg_map": reg_label,
+                    "sub_map": submap,
+                    "occupancy_map": occupancy_label
+                }
 
                 pred = self.model(voxel)
-                #cls = self.cls_loss_fn(pred["cls_map"], cls_label)
-                #reg =  self.reg_loss_fn(pred["reg_map"], reg_label, cls_label)
-                #loss = cls + reg
-                loss, cls, reg = self.loss(pred, {"cls_map": cls_label, "reg_map": reg_label, "sub_map": submap})
+                loss, cls, reg, occupancy = self.loss(pred, target)
 
                 cls_loss += cls
                 reg_loss += reg
+                occupancy_loss += occupancy
                 val_loss += loss.item()
 
         self.model.train()
 
         self.writer.add_scalar("cls_loss/val", cls_loss / len(self.val_loader), epoch)
         self.writer.add_scalar("reg_loss/val", reg_loss / len(self.val_loader), epoch)
+        self.writer.add_scalar("occupancy_loss/val", occupancy_loss / len(self.val_loader), epoch)
         self.writer.add_scalar("loss/val", val_loss / len(self.val_loader), epoch)
 
         print("Epoch {}|Time {}|Validation Loss: {:.5f}".format(
