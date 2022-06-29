@@ -1,7 +1,7 @@
 import torch
 
 from core.models.pixor_torchscript import PIXOR
-from core.models.mobilepixor_torchscript import MobilePIXOR
+from core.models.mobilepixor_aux_torchscript import MobilePIXOR
 
 if __name__ == "__main__":
     geometry = {
@@ -18,8 +18,8 @@ if __name__ == "__main__":
                 "label_shape": [200, 175, 6]
             }
     
-    model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
-
+    #model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
     data_file = "/home/stpc/clean_data/list/test.txt"
     model_type = "mobilepixor"
 
@@ -34,4 +34,4 @@ if __name__ == "__main__":
     scripted_model = torch.jit.script(model)
 
     print(scripted_model.code)
-    scripted_model.save("/home/stpc/models/mobilepixor_nms_free.pt")
+    scripted_model.save("/home/stpc/models/mobilepixor_aux.pt")

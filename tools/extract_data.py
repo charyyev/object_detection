@@ -145,15 +145,15 @@ class Vis():
 
 if __name__ == "__main__":
     #bag_file = "/home/stpc/stpc_ws/data/rosbag_recorder/scripts/city_ori_xt.bag"
-    bag_file = "/home/stpc/rosbags/ai_2022-06-14-17-11-07.bag"
+    bag_file = "/home/stpc/rosbags/pizza_2022-04-12-16-48-06.bag.active"
     #bag_name = bag_file.split("/")[-1].split(".")[0]
-    bag_name = "demo"
+    bag_name = "pizza"
     save_location = "/home/stpc/data/extracted_data/small_robot/pointcloud"
 
     num_fields = 4
     
     bag = rosbag.Bag(bag_file)
-    lidar_topics = ["/velodyne_points"]
+    lidar_topics = ["/points_raw"]
     frames = []
     max_frames = 7000
     for topic, msg, t in bag.read_messages():

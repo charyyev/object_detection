@@ -1,6 +1,6 @@
-from core.aux_dataset import Dataset
-from core.models.mobilepixor_aux import MobilePIXOR
-from core.losses import AuxLoss
+from core.afdet_dataset import Dataset
+from core.models.afdet import AFDet
+from core.modified_losses import AFDetLoss
 
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -8,7 +8,7 @@ import torch
 import os
 import time
 
-class AuxAgent():
+class AFDetAgent():
     def __init__(self, config):
         self.config = config
         self.device = config["device"]
@@ -30,10 +30,10 @@ class AuxAgent():
         momentum = self.config["train"]["momentum"]
         weight_decay = self.config["train"]["weight_decay"]
         lr_decay_at = self.config["train"]["lr_decay_at"]
-        self.model = MobilePIXOR(geometry)
+        self.model = AFDet(self.config["data"]["num_classes"])
 
         self.model.to(self.device)
-        self.loss = AuxLoss(self.config["loss"]["focal_loss"], self.config["device"])
+        self.loss = AFDetLoss()
         if self.config["train"]["use_differential_learning"]:
             dif_learning_rate = self.config["train"]["differential_learning_rate"]
             self.optimizer = torch.optim.Adam([{'params': self.model.backbone.parameters(), 'lr': dif_learning_rate[1]},
@@ -45,41 +45,48 @@ class AuxAgent():
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=lr_decay_at, gamma=0.1)
 
     def train_one_epoch(self, epoch):
-        reg_loss = 0
+        offset_loss = 0
         cls_loss = 0
         train_loss = 0
-        occupancy_loss = 0
+        size_loss = 0
+        yaw_loss = 0
         start_time = time.time()
         self.model.train()
         for data in self.train_loader:
             voxel = data["voxel"].to(self.device)
-            cls_label = data["cls_map"].to(self.device)
-            reg_label = data["reg_map"].to(self.device)
-            submap = data["sub_map"].to(self.device)
-            occupancy_label = data["occupancy_map"].to(self.device)
+            cls_label = data["cls"].to(self.device)
+            offset_label = data["offset"].to(self.device)
+            size_label = data["size"].to(self.device)
+            yaw_label = data["yaw"].to(self.device)
+            reg_mask = data["reg_mask"].to(self.device)
+            
 
             target = {
-                "cls_map": cls_label,
-                "reg_map": reg_label,
-                "sub_map": submap,
-                "occupancy_map": occupancy_label
+                "cls": cls_label,
+                "offset": offset_label,
+                "size": size_label,
+                "yaw": yaw_label,
+                "reg_mask": reg_mask
             }
             self.optimizer.zero_grad()
 
             pred = self.model(voxel)
-            loss, cls, reg, occupancy = self.loss(pred, target)
+            loss, cls, offset, size, yaw = self.loss(pred, target)
 
             loss.backward()
             self.optimizer.step()
 
             cls_loss += cls
-            reg_loss += reg
+            offset_loss += offset
+            size_loss += size
+            yaw_loss += yaw
             train_loss += loss.item()
-            occupancy_loss += occupancy
+            
 
         self.writer.add_scalar("cls_loss/train", cls_loss / len(self.train_loader), epoch)
-        self.writer.add_scalar("reg_loss/train", reg_loss / len(self.train_loader), epoch)
-        self.writer.add_scalar("occupancy_loss/train", occupancy_loss / len(self.train_loader), epoch)
+        self.writer.add_scalar("offset_loss/train", offset_loss / len(self.train_loader), epoch)
+        self.writer.add_scalar("size_loss/train", size_loss / len(self.train_loader), epoch)
+        self.writer.add_scalar("yaw_loss/train", yaw_loss / len(self.train_loader), epoch)
         self.writer.add_scalar("loss/train", train_loss / len(self.train_loader), epoch)
 
         print("Epoch {}|Time {}|Training Loss: {:.5f}".format(
@@ -115,40 +122,46 @@ class AuxAgent():
 
 
     def validate(self, epoch):
-        reg_loss = 0
+        offset_loss = 0
         cls_loss = 0
         val_loss = 0
-        occupancy_loss = 0
+        size_loss = 0
+        yaw_loss = 0
         start_time = time.time()
         self.model.eval()
         with torch.no_grad():
             for data in self.val_loader:
                 voxel = data["voxel"].to(self.device)
-                cls_label = data["cls_map"].to(self.device)
-                reg_label = data["reg_map"].to(self.device)
-                submap = data["sub_map"].to(self.device)
-                occupancy_label = data["occupancy_map"].to(self.device)
+                cls_label = data["cls"].to(self.device)
+                offset_label = data["offset"].to(self.device)
+                size_label = data["size"].to(self.device)
+                yaw_label = data["yaw"].to(self.device)
+                reg_mask = data["reg_mask"].to(self.device)
+                
 
                 target = {
-                    "cls_map": cls_label,
-                    "reg_map": reg_label,
-                    "sub_map": submap,
-                    "occupancy_map": occupancy_label
+                    "cls": cls_label,
+                    "offset": offset_label,
+                    "size": size_label,
+                    "yaw": yaw_label,
+                    "reg_mask": reg_mask
                 }
 
                 pred = self.model(voxel)
-                loss, cls, reg, occupancy = self.loss(pred, target)
+                loss, cls, offset, size, yaw = self.loss(pred, target)
 
                 cls_loss += cls
-                reg_loss += reg
-                occupancy_loss += occupancy
+                offset_loss += offset
+                size_loss += size
+                yaw_loss += yaw
                 val_loss += loss.item()
 
         self.model.train()
 
         self.writer.add_scalar("cls_loss/val", cls_loss / len(self.val_loader), epoch)
-        self.writer.add_scalar("reg_loss/val", reg_loss / len(self.val_loader), epoch)
-        self.writer.add_scalar("occupancy_loss/val", occupancy_loss / len(self.val_loader), epoch)
+        self.writer.add_scalar("offset_loss/val", offset_loss / len(self.val_loader), epoch)
+        self.writer.add_scalar("size_loss/val", size_loss / len(self.val_loader), epoch)
+        self.writer.add_scalar("yaw_loss/val", yaw_loss / len(self.val_loader), epoch)
         self.writer.add_scalar("loss/val", val_loss / len(self.val_loader), epoch)
 
         print("Epoch {}|Time {}|Validation Loss: {:.5f}".format(

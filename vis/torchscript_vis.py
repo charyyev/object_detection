@@ -19,7 +19,7 @@ from utils.postprocess import non_max_suppression
 from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
-from core.models.mobilepixor_torchscript import MobilePIXOR
+from core.models.mobilepixor_aux_torchscript import MobilePIXOR
 
 
 class Vis():
@@ -231,10 +231,10 @@ class Vis():
         y_res = geometry["y_res"]
         
         voxel = data["voxel"]
-        voxel = voxel.half()
-        voxel = voxel.to("cuda:0")
+        #voxel = voxel.half()
+        #voxel = voxel.to("cuda:0")
         # boxes = self.model(voxel, x_min, y_min, x_res, y_res, 0.1).detach().cpu().numpy()
-        pred = self.model(voxel, x_min, y_min, x_res, y_res, 0.1)
+        pred = self.model(voxel, x_min, y_min, x_res, y_res, torch.tensor([1, 0.1, 0.1, 0.1, 0.1]), 1)
         # print(boxes.shape)
         # points = data["points"].squeeze().numpy()
 
@@ -328,21 +328,22 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/more_classes.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
+    #model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
-    data_file = "/home/stpc/clean_data/list/small_robot_train.txt"
+    data_file = "/home/stpc/clean_data/list/small_robot_test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
-    # model = MobilePIXOR()
-    # model.to(config['device'])
-    # model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
-    # device = config["device"]
+    model = MobilePIXOR()
+    #model.to(config['device'])
+    model.load_state_dict(torch.load(model_path, map_location="cpu"))
+    device = config["device"]
 
     #model_path = "/home/stpc/models/pixor_half.pt"
-    model_path = "/home/stpc/models/mobilepixor.pt"
-    model = torch.jit.load(model_path)
-    model.to("cuda:0")
+    # model_path = "/home/stpc/models/mobilepixor.pt"
+    # model = torch.jit.load(model_path)
+    # model.to("cuda:0")
     vis = Vis(data_loader, model, config["data"])
     vis.run()
 

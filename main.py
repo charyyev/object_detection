@@ -1,6 +1,7 @@
 from core.train_agent import TrainAgent
 from core.hotspot_agent import HotSpotAgent
 from core.aux_agent import AuxAgent
+from core.afdet_agent import AFDetAgent
 
 import argparse
 import json
@@ -24,6 +25,9 @@ if __name__ == "__main__":
             agent = HotSpotAgent(config)
         elif config["strategy"] == "aux":
             agent = AuxAgent(config)
+    elif config["model"] == "afdet":
+        print("AFDet")
+        agent = AFDetAgent(config)
     else:
         agent = TrainAgent(config)
     agent.train()

@@ -65,6 +65,7 @@ def focal_loss(
     return loss
 
 
+
 class FocalLoss(nn.Module):
     def __init__(self, config) -> None:
         super().__init__()
@@ -224,7 +225,7 @@ class AuxLoss(nn.Module):
         for i in range(cls_pred.shape[1]):
             cls[0, i, :] = cls_pred[:, i, :, :][idxs]
     
-        fc_loss = focal_loss(cls, cls_target[submap_target == 1].view(1, -1), self.alpha, self.gamma, self.reduction)
+        fc_loss = focal_loss(cls, cls_target[submap_target == 1].view(1, -1), self.alpha, self.gamma, self.reduction, alphas = [0.1, 0.2, 1, 0.3, 0.2])
         #occupancy_loss = focal_loss(occupancy_pred, occupancy_target, self.alpha, self.gamma, self.reduction, alphas = [1, 1, 1, 1, 1])
         occupancy_loss = F.binary_cross_entropy_with_logits(occupancy_pred, occupancy_target)
 

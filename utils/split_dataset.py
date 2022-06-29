@@ -14,8 +14,8 @@ def split(datas, percents, save_folder):
         val_set = lidar_files[train_len: min(train_len + val_len, len(lidar_files))]
         #test_set = lidar_files[train_len + val_len: min(train_len + 2 * val_len, len(lidar_files))]
         #write_to_file(os.path.join(save_folder, "small_robot_test.txt"), train_set, data)
-        write_to_file(os.path.join(save_folder, "self_train.txt"), train_set, data)
-        #write_to_file(os.path.join(save_folder, "small_robot_val.txt"), val_set, data)
+        write_to_file(os.path.join(save_folder, "fine_tune.txt"), train_set, data)
+        #write_to_file(os.path.join(save_folder, "jrdb_val.txt"), val_set, data)
         #write_to_file(os.path.join(save_folder, "test.txt"), test_set, data)
 
     
@@ -32,14 +32,15 @@ def write_to_file(filename, dataset, datatype):
 
 
 if __name__ == "__main__":
-    datas = {"lyft": "/home/stpc/clean_data/lyft/pointcloud",
-             "kitti": "/home/stpc/clean_data/kitti/pointcloud",
-             "nuscenes": "/home/stpc/clean_data/nuscenes/pointcloud",
-             "small_robot": "/home/stpc/clean_data/small_robot/pointcloud"
-    }
-    percents = {"kitti": 15, "lyft": 15, "nuscenes": 80, "small_robot": 80}
-    datas = {"auto": "/home/stpc/clean_data/auto/pointcloud"}
-    percents = {"auto": 100}
+    datas = {"jrdb": "/home/stpc/clean_data/jrdb/pointcloud",
+             "small_robot": "/home/stpc/clean_data/small_robot/pointcloud",
+             "wego": "/home/stpc/clean_data/wego/pointcloud",
+             "nuscenes": "/home/stpc/clean_data/nuscenes/pointcloud"}
+    percents = {"jrdb": 50, "small_robot": 90, "wego": 90, "nuscenes": 30}
+
+    datas = {"small_robot": "/home/stpc/clean_data/small_robot/pointcloud",
+            "wego": "/home/stpc/clean_data/wego/pointcloud"}
+    percents = {"small_robot": 100, "wego": 100}
     save_folder = "/home/stpc/clean_data/list"
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)

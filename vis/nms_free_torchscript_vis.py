@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import json
 import matplotlib.pyplot as plt
@@ -13,12 +14,13 @@ import torch
 import torch.nn.functional as F
 
 from utils.preprocess import voxelize, voxel_to_points
-from utils.postprocess import filter_pred, filter_pred_nms_free, filter_pred_aux
+from utils.transform import corner_to_center_box2d
+from utils.postprocess import non_max_suppression
 from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
-from core.models.pixor import PIXOR
-from core.models.mobilepixor_aux import MobilePIXOR
+from core.models.mobilepixor_aux_torchscript import MobilePIXOR
+
 
 class Vis():
     def __init__(self, data_loader, model, config, task = "val"):
@@ -52,13 +54,12 @@ class Vis():
 
         self.canvas1 = SceneCanvas(keys='interactive',
                                 show=True,
-                                size=(400, 350))
+                                size=(200, 175))
         self.canvas1.events.key_press.connect(self._key_press)
         self.canvas1.events.draw.connect(self._draw)
 
         self.view = self.canvas1.central_widget.add_view()
         self.image = vispy.scene.visuals.Image(parent=self.view.scene)
-        self.image1 = vispy.scene.visuals.Image(parent=self.view.scene)
 
         self.update_scan()
 
@@ -222,18 +223,21 @@ class Vis():
         else:
             data = next(self.iter)
             self.current_data = data
+
+        geometry = self.config[data["dtype"][0]]["geometry"]
+        x_min = geometry["x_min"]
+        y_min = geometry["y_min"]
+        x_res = geometry["x_res"]
+        y_res = geometry["y_res"]
+        
         voxel = data["voxel"]
-        pred = self.model(voxel)
-        pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
-        occupancy_map = torch.sigmoid(pred["occupancy_map"]).squeeze().detach().cpu().numpy()
-        reg_pred = pred["reg_map"].detach().cpu().numpy()
-        cls_pred = pred["cls_map"].detach().cpu().numpy()
-        threshold = [1, 0.3, 0.01, 0.1, 0.3]
-        #threshold = 0.001
-        boxes, ignored_boxes = filter_pred_aux(reg_pred, cls_pred, occupancy_map, self.config[data["dtype"][0]], score_threshold=threshold, occupancy_pow = 0, nms_threshold=0.8)
-
+        #voxel = voxel.half()
+        voxel = voxel.to("cuda:0")
+        # boxes = self.model(voxel, x_min, y_min, x_res, y_res, 0.1).detach().cpu().numpy()
+        pred = self.model(voxel, x_min, y_min, x_res, y_res, torch.tensor([1, 0.1, 0.3, 0.1, 0.1]), 0.5)
+        boxes = pred.detach().cpu().numpy()
+        # print(boxes.shape)
         points = data["points"].squeeze().numpy()
-
 
         box_list = []
         class_list = []
@@ -244,12 +248,8 @@ class Vis():
             class_list.append(box[0])
             scores.append(box[1])
 
-
-        for i in range(ignored_boxes.shape[0]):
-            box = ignored_boxes[i]
-            box_list.append(self.get_corners(box))
-            class_list.append(5)
-            scores.append(box[1])
+        # print(class_list) 
+        
         
 
         #colors = np.array([0, 1, 1])
@@ -267,46 +267,7 @@ class Vis():
         else:
             self.plot_gt_boxes(data["cls_list"], data["boxes"])
         
-        cls_pred = pred["cls_map"].squeeze().detach().cpu().numpy()
-        #cls_pred = one_hot(data["cls_map"], num_classes=4, device="cpu", dtype=data["cls_map"].dtype).squeeze().detach().cpu().numpy()
-
-        cls_probs = np.max(cls_pred, axis = 0)
-        cls_ids = np.argmax(cls_pred, axis = 0)
-        cls_map = cls_ids
         
-
-        color_img = np.zeros((cls_map.shape[0], cls_map.shape[1], 3))
-
-        color_img[:, :, 0][cls_map == 1] = 1
-        color_img[:, :, 1][cls_map == 1] = 0
-        color_img[:, :, 2][cls_map == 1] = 0
-        color_img[:, :, 0][cls_map == 2] = 0
-        color_img[:, :, 1][cls_map == 2] = 1
-        color_img[:, :, 2][cls_map == 2] = 0
-        color_img[:, :, 0][cls_map == 3] = 1
-        color_img[:, :, 1][cls_map == 3] = 1
-        color_img[:, :, 2][cls_map == 3] = 1
-        color_img[:, :, 0][cls_map == 4] = 1
-        color_img[:, :, 1][cls_map == 4] = 1
-        color_img[:, :, 2][cls_map == 4] = 0
-        color_img[:, :, 0][cls_map == 5] = 0
-        color_img[:, :, 1][cls_map == 5] = 1
-        color_img[:, :, 2][cls_map == 5] = 1
-
-        color_img1 = np.zeros((occupancy_map.shape[0], occupancy_map.shape[1], 3))
-
-        color_img1[:, :, 0][occupancy_map > 0.5] = 1
-
-        img = np.concatenate((color_img, color_img1), axis = 1)
-
-        self.image.set_data(np.swapaxes(img, 0, 1))
-
-
-        
-        #color_img[:, :, 1][occupancy_map > 0.5 ] = 0
-        #color_img[:, :, 2][occupancy_map > 0.5] = 0
-
-        #self.image1.set_data(np.swapaxes(color_img1, 0, 1))
 
 
     def _key_press(self, event):
@@ -346,21 +307,22 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/aux_high_range.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_fine_tune_aux_28-06-2022_1/checkpoints/19epoch"
-    #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
-    model_type = "mobilepixor"
+    #model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
-    data_file = "/home/stpc/clean_data/list/fine_tune.txt"
+    data_file = "/home/stpc/clean_data/list/small_robot_test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
-    if model_type == "pixor":
-        model = PIXOR(config["data"]["kitti"]["geometry"])
-    elif model_type == "mobilepixor":
-        model = MobilePIXOR(config["data"]["kitti"]["geometry"])
-    #model.to(config['device'])
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
-    #device = config["device"]
 
+    model = MobilePIXOR()
+    model.to(config['device'])
+    model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
+    device = config["device"]
+
+    #model_path = "/home/stpc/models/pixor_half.pt"
+    # model_path = "/home/stpc/models/mobilepixor_aux.pt"
+    # model = torch.jit.load(model_path)
+    # model.to("cuda:0")
     vis = Vis(data_loader, model, config["data"])
     vis.run()
 

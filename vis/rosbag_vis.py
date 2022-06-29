@@ -15,10 +15,10 @@ from vispy import app
 from vispy.scene.visuals import Text
 
 from core.models.pixor import PIXOR
-from core.models.mobilepixor import MobilePIXOR
+from core.models.mobilepixor_aux import MobilePIXOR
 from tools.lidar_conversion import pcl_to_numpy
 from utils.preprocess import voxelize
-from utils.postprocess import filter_pred
+from utils.postprocess import filter_pred, filter_pred_aux
 
 
 class Vis():
@@ -81,10 +81,20 @@ class Vis():
         
         pred = self.model(voxel)
         pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
+        occupancy_map = torch.sigmoid(pred["occupancy_map"]).squeeze().detach().cpu().numpy()
         reg_pred = pred["reg_map"].detach().cpu().numpy()
         cls_pred = pred["cls_map"].detach().cpu().numpy()
+        threshold = [1, 0.5, 0.01, 0.3, 0.3]
         config = {"geometry": self.geometry}
-        boxes = filter_pred(reg_pred, cls_pred, config, score_threshold=0.6, nms_threshold=0.1)
+        #threshold = 0.001
+        boxes, ignored_boxes = filter_pred_aux(reg_pred, cls_pred, occupancy_map, config, score_threshold=threshold, occupancy_pow = 1, nms_threshold=0.1)
+        
+        
+        # pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
+        # reg_pred = pred["reg_map"].detach().cpu().numpy()
+        # cls_pred = pred["cls_map"].detach().cpu().numpy()
+        # config = {"geometry": self.geometry}
+        # boxes = filter_pred(reg_pred, cls_pred, config, score_threshold=0.6, nms_threshold=0.1)
 
         colors = self.get_point_color_using_intensity(points)
         #colors = np.array([0, 1, 1])
@@ -241,12 +251,14 @@ class Vis():
 
 
 if __name__ == "__main__":
-    bag_file = "/home/stpc/rosbags/route2.bag"
+    bag_file = "/home/stpc/rosbags/ai_2022-06-14-17-11-07.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
-    with open("/home/stpc/proj/object_detection/configs/fine_tune.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/aux_high_range.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor__18-05-2022_1/checkpoints/50epoch"
+
+    model_path = "/home/stpc/experiments/mobilepixor_aux_20-06-2022_1/322epoch"
     #model_path = "/home/stpc/experiments/pixor_mixed_19-04-2022_1/159epoch"
+    #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
     device = "cuda:0"
     data_type = "small_robot"
     model_type = "mobilepixor"
@@ -254,7 +266,7 @@ if __name__ == "__main__":
     
     max_frames = 5000
     bag = rosbag.Bag(bag_file)
-    lidar_topics = ["/points_raw"]
+    lidar_topics = ["/velodyne_points"]
     frames = []
     for topic, msg, t in bag.read_messages():
         if len(frames) > max_frames:

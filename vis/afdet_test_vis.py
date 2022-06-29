@@ -13,12 +13,10 @@ import torch
 import torch.nn.functional as F
 
 from utils.preprocess import voxelize, voxel_to_points
-from utils.postprocess import filter_pred, filter_pred_nms_free, filter_pred_aux
-from core.dataset import Dataset
-from utils.one_hot import one_hot
-from core.losses import CustomLoss
-from core.models.pixor import PIXOR
-from core.models.mobilepixor_aux import MobilePIXOR
+from utils.postprocess import filter_pred_afdet
+from core.afdet_dataset import Dataset
+
+from core.models.afdet import AFDet
 
 class Vis():
     def __init__(self, data_loader, model, config, task = "val"):
@@ -102,11 +100,11 @@ class Vis():
             self.bbox.visible = False
             return
 
-        object_colors = {1: np.array([1, 0, 0, 1]), 
-                         2: np.array([0, 1, 0, 1]), 
-                         3: np.array([0, 0, 1, 1]),
-                         4: np.array([1, 1, 0, 1]),
-                         5: np.array([1, 1, 1, 1])}
+        object_colors = {0: np.array([1, 0, 0, 1]), 
+                         1: np.array([0, 1, 0, 1]), 
+                         2: np.array([0, 0, 1, 1]),
+                         3: np.array([1, 1, 0, 1]),
+                         4: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -148,11 +146,11 @@ class Vis():
             self.gt_bbox.visible = False
             return
 
-        object_colors = {1: np.array([1, 0, 0, 1]), 
-                         2: np.array([0, 1, 0, 1]), 
-                         3: np.array([0, 0, 1, 1]),
-                         4: np.array([1, 1, 0, 1]),
-                         5: np.array([1, 1, 1, 1])}
+        object_colors = {0: np.array([1, 0, 0, 1]), 
+                         1: np.array([0, 1, 0, 1]), 
+                         2: np.array([0, 0, 1, 1]),
+                         3: np.array([1, 1, 0, 1]),
+                         4: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -224,14 +222,16 @@ class Vis():
             self.current_data = data
         voxel = data["voxel"]
         pred = self.model(voxel)
-        pred["cls_map"] = F.softmax(pred["cls_map"], dim=1)
-        occupancy_map = torch.sigmoid(pred["occupancy_map"]).squeeze().detach().cpu().numpy()
-        reg_pred = pred["reg_map"].detach().cpu().numpy()
-        cls_pred = pred["cls_map"].detach().cpu().numpy()
-        threshold = [1, 0.3, 0.01, 0.1, 0.3]
-        #threshold = 0.001
-        boxes, ignored_boxes = filter_pred_aux(reg_pred, cls_pred, occupancy_map, self.config[data["dtype"][0]], score_threshold=threshold, occupancy_pow = 0, nms_threshold=0.8)
 
+        
+        offset_pred = pred["offset"]
+        size_pred = pred["size"]
+        yaw_pred = pred["yaw"]
+        cls_pred = pred["cls"]
+        #threshold = [1, 0.3, 0.01, 0.1, 0.3]
+        threshold = 0.5
+        boxes = filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, self.config[data["dtype"][0]], threshold)
+        print(boxes.shape)
         points = data["points"].squeeze().numpy()
 
 
@@ -241,15 +241,10 @@ class Vis():
         for i in range(boxes.shape[0]):
             box = boxes[i]
             box_list.append(self.get_corners(box))
-            class_list.append(box[0])
+            class_list.append(int(box[0]))
             scores.append(box[1])
 
 
-        for i in range(ignored_boxes.shape[0]):
-            box = ignored_boxes[i]
-            box_list.append(self.get_corners(box))
-            class_list.append(5)
-            scores.append(box[1])
         
 
         #colors = np.array([0, 1, 1])
@@ -267,46 +262,16 @@ class Vis():
         else:
             self.plot_gt_boxes(data["cls_list"], data["boxes"])
         
-        cls_pred = pred["cls_map"].squeeze().detach().cpu().numpy()
+        cls_pred = pred["cls"].squeeze().detach().cpu().numpy()
         #cls_pred = one_hot(data["cls_map"], num_classes=4, device="cpu", dtype=data["cls_map"].dtype).squeeze().detach().cpu().numpy()
 
         cls_probs = np.max(cls_pred, axis = 0)
-        cls_ids = np.argmax(cls_pred, axis = 0)
-        cls_map = cls_ids
-        
-
-        color_img = np.zeros((cls_map.shape[0], cls_map.shape[1], 3))
-
-        color_img[:, :, 0][cls_map == 1] = 1
-        color_img[:, :, 1][cls_map == 1] = 0
-        color_img[:, :, 2][cls_map == 1] = 0
-        color_img[:, :, 0][cls_map == 2] = 0
-        color_img[:, :, 1][cls_map == 2] = 1
-        color_img[:, :, 2][cls_map == 2] = 0
-        color_img[:, :, 0][cls_map == 3] = 1
-        color_img[:, :, 1][cls_map == 3] = 1
-        color_img[:, :, 2][cls_map == 3] = 1
-        color_img[:, :, 0][cls_map == 4] = 1
-        color_img[:, :, 1][cls_map == 4] = 1
-        color_img[:, :, 2][cls_map == 4] = 0
-        color_img[:, :, 0][cls_map == 5] = 0
-        color_img[:, :, 1][cls_map == 5] = 1
-        color_img[:, :, 2][cls_map == 5] = 1
-
-        color_img1 = np.zeros((occupancy_map.shape[0], occupancy_map.shape[1], 3))
-
-        color_img1[:, :, 0][occupancy_map > 0.5] = 1
-
-        img = np.concatenate((color_img, color_img1), axis = 1)
-
-        self.image.set_data(np.swapaxes(img, 0, 1))
-
 
         
-        #color_img[:, :, 1][occupancy_map > 0.5 ] = 0
-        #color_img[:, :, 2][occupancy_map > 0.5] = 0
 
-        #self.image1.set_data(np.swapaxes(color_img1, 0, 1))
+        self.image.set_data(np.swapaxes(cls_probs, 0, 1))
+
+
 
 
     def _key_press(self, event):
@@ -344,19 +309,16 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/aux_high_range.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_fine_tune_aux_28-06-2022_1/checkpoints/19epoch"
+    model_path = "/home/stpc/experiments/afdet_afdet_overfit_29-06-2022_1/checkpoints/395epoch"
     #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
-    model_type = "mobilepixor"
 
-    data_file = "/home/stpc/clean_data/list/fine_tune.txt"
+
+    data_file = "/home/stpc/clean_data/list/overfit1.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
-    if model_type == "pixor":
-        model = PIXOR(config["data"]["kitti"]["geometry"])
-    elif model_type == "mobilepixor":
-        model = MobilePIXOR(config["data"]["kitti"]["geometry"])
+    model = AFDet(config["data"]["num_classes"])
     #model.to(config['device'])
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     #device = config["device"]

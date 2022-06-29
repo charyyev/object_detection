@@ -1,16 +1,22 @@
 import os
 import numpy as np
+import json
+import open3d as o3d
 import matplotlib.pyplot as plt
 import vispy
 from vispy.scene import visuals
 from vispy.scene.cameras import TurntableCamera
 from vispy.scene import SceneCanvas
 
+from scipy.spatial.transform import Rotation as R
+
 
 class Vis():
-    def __init__(self, data_folder, label_folder):
+    def __init__(self, data_folder, labels):
         self.index = 0
-        self.lidar_paths, self.label_paths= self.read_data(data_folder, label_folder)
+        self.lidar_files = sorted(os.listdir(data_folder))
+        self.labels = labels
+        self.data_folder = data_folder
 
         self.canvas = SceneCanvas(keys='interactive',
                                 show=True,
@@ -28,20 +34,11 @@ class Vis():
         self.bbox = vispy.scene.visuals.Line(parent=self.scan_view.scene)
         self.update_scan()
 
-    def read_data(self, data_folder, label_folder):
-        lidar_files = sorted(os.listdir(data_folder))
-        lidar_paths = [os.path.join(data_folder, f) for f in lidar_files]
-        label_paths = []
-        for lidar_file in lidar_files:
-            label_path = os.path.join(label_folder, lidar_file.replace("bin", "txt"))
-            if os.path.isfile(label_path):
-                label_paths.append(label_path)
-            else:
-                label_paths.append(None)
-        return lidar_paths, label_paths
 
     def read_points(self, lidar_path):
-        return np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 4)
+        pcd = o3d.io.read_point_cloud(lidar_path)
+        return np.asarray(pcd.points)
+
 
     def get_point_color_using_intensity(self, points):
         scale_factor = 10
@@ -59,35 +56,7 @@ class Vis():
         colors = color_range[scaled_intensity]
         return colors
 
-    def read_bbox(self, label_path):
-        #object_list = {'Car': 1, 'Pedestrian':2, 'Person_sitting':2, 'Cyclist':3}
-        #object_list = {'car': 1, 'pedestrian':2, 'person_sitting':2, 'bicycle':3}
-        #object_list = {'vehicle.car': 1}
-        object_list = {
-            "Car": 1, 
-            "Pedestrian": 2, 
-            "Bicycle": 3,
-            "Motorcycle": 3,
-            "Scooter": 3,
-            "Truck": 4,
-            "Bus": 4
-        }
 
-        corner_list = []
-        class_list = []
-        with open(label_path, 'r') as f:
-            lines = f.readlines() # get rid of \n symbol
-            for line in lines:
-                bbox = []
-                entry = line.split(' ')
-                name = entry[0]
-                if name in list(object_list.keys()):
-                    bbox.append(object_list[name])
-                    bbox.extend([float(e) for e in entry[1:]])
-                    class_list.append(object_list[name])
-                    corners = self.get_corners(bbox)
-                    corner_list.append(corners)
-        return (class_list, corner_list)
 
     def get_corners(self, bbox):
         h, w, l, x, y, z, yaw = bbox[1:]
@@ -97,8 +66,8 @@ class Vis():
         back = -l / 2
         left = w / 2
         right = -w / 2
-        top = h
-        bottom = 0
+        top = h / 2
+        bottom = -h / 2
         corners.append([front, left, top])
         corners.append([front, left, bottom])
         corners.append([front, right, bottom])
@@ -164,28 +133,78 @@ class Vis():
                             connect=connect,
                             color=colors)
 
+    def read_bbox(self, label):
+        boxes = []
+        cls_list = []
+        cam_x = -0.019685
+        cam_y = 0
+        cam_z = 0.742092
+
+        velo_x = -0.019685
+        velo_y = 0
+        velo_z = 1.077382
+
+        dx = velo_x - cam_x
+        dy = velo_y - cam_y
+        dz = velo_z - cam_z
+        
+        orig2cam = R.from_euler('xyz', [0, 0, 0 ])
+        orig2velo = R.from_euler('xyz', [0, 0, -0.085])
+
+        cam2velo = orig2velo * orig2cam.inv() 
+
+        rot_arr = cam2velo.as_matrix()
+        
+
+        for i in range(len(label)):
+            box = label[i]["box"]
+            x = box["cx"]
+            y = box["cy"]
+            z = box["cz"]
+
+            vec = np.array([[x], [y], [z]])
+            rot_vec = np.matmul(rot_arr, vec)
+     
+            x = rot_vec[0][0] - dx
+            y = rot_vec[1][0] - dy
+            z = rot_vec[2][0] - dz
+            #z -= dz
+
+            h = box["h"]
+            w = box["w"]
+            l = box["l"]
+            yaw = box["rot_z"]
+            if "social_activity" in label[i] and  "cycling" in label[i]["social_activity"]:
+                cls_list.append(3)
+            else:
+                cls_list.append(2)
+            corners = self.get_corners([2, h, w, l, x, y, z, -yaw])
+            boxes.append(corners)
+
+        return cls_list, boxes
+
 
     def update_scan(self):
-        lidar_path = self.lidar_paths[self.index]
-        label_path = self.label_paths[self.index]
-        points = self.read_points(lidar_path)
-        class_list, boxes = self.read_bbox(label_path)
-
-        colors = self.get_point_color_using_intensity(points)
-        colors = [0, 1,1 ]
-        #self.canvas.title = f"Frame: {self.index} / {len(self.lidar_paths)} - {lidar_path}"
-        self.canvas.title = lidar_path.split("/")[-1]
+        lidar_file = self.lidar_files[self.index]
+        label = self.labels[lidar_file]
+        
+        points = self.read_points(os.path.join(self.data_folder, lidar_file))
+        cls_list, boxes = self.read_bbox(label)
+        
+        #colors = self.get_point_color_using_intensity(points)
+        colors = [0, 1, 1]
+        self.canvas.title = lidar_file
         self.scan_vis.set_data(points[:, :3],
                             face_color=colors,
                             edge_color=colors,
                             size=1.0)
 
-        self.plot_boxes(class_list, boxes)
+        self.plot_boxes(cls_list, boxes)
 
 
     def _key_press(self, event):
         if event.key == 'N':
-            if self.index < len(self.lidar_paths) - 1:
+            if self.index < len(self.lidar_files) - 1:
                 self.index += 1
             self.update_scan()
 
@@ -211,11 +230,12 @@ class Vis():
 
 
 if __name__ == "__main__":
-    data_folder = "/home/stpc/clean_data/small_robot/pointcloud"
-    label_folder = "/home/stpc/clean_data/small_robot/label"
-    #data_folder = "/home/stpc/clean_data/kitti/pointcloud/"
-    #label_folder = "/home/stpc/clean_data/kitti/label/"
-    #data_folder = "/home/stpc/clean_data/small_robot/pointcloud"
-    #label_folder = "/home/stpc/clean_data/small_robot/label"
-    vis = Vis(data_folder, label_folder)
+    name = "tressider-2019-04-26_2"
+    data_folder = "/home/stpc/data/jrdb_train/train_dataset_with_activity/pointclouds/upper_velodyne/" + name
+    label_file = "/home/stpc/data/jrdb_train/train_dataset_with_activity/labels/labels_3d/" + name + ".json"
+    
+    f = open(label_file)
+    labels = json.load(f)
+
+    vis = Vis(data_folder, labels["labels"])
     vis.run()

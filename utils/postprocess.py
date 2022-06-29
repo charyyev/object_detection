@@ -81,7 +81,15 @@ def filter_pred(reg_pred, cls_pred, config, score_threshold, nms_threshold):
     cls_probs = np.max(cls_pred, axis = 0)
     cls_ids = np.argmax(cls_pred, axis = 0)
 
-    idxs = np.logical_and(cls_probs > score_threshold, cls_ids != 0)
+    if isinstance(score_threshold, list):
+        thres = np.array(score_threshold)
+        thres_arr = np.repeat(np.expand_dims(thres, 1), cls_pred.shape[1], 1)
+        thres_arr = np.repeat(np.expand_dims(thres_arr, 2), cls_pred.shape[2], 2)
+
+        comparisons = cls_pred > thres_arr
+        idxs = np.logical_and(np.any(comparisons, 0), cls_ids != 0)
+    else:
+        idxs = np.logical_and(cls_probs > score_threshold, cls_ids != 0)
     cls = cls_ids[idxs]
     scores = cls_probs[idxs]
     y = np.arange(geometry["label_shape"][0])
@@ -182,8 +190,199 @@ def filter_pred_nms_free(reg_pred, cls_pred, config, score_threshold, nms_thresh
 
     return boxes
 
+def filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, config, thres):
+    geometry = config["geometry"]
+
+    offset_pred = offset_pred[0].detach()
+    size_pred = size_pred[0].detach()
+    yaw_pred = yaw_pred[0].detach()
+    cls_pred = cls_pred[0].detach()
+
+    cos_t, sin_t = torch.chunk(yaw_pred, 2, dim = 0)
+    dx, dy = torch.chunk(offset_pred, 2, dim = 0)
+    log_w, log_l = torch.chunk(size_pred, 2, dim = 0)
+
+    cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
+
+   
+    pooled = F.max_pool2d(cls_probs.unsqueeze(0), 3, 1, 1).squeeze()
+    selected_idxs = torch.logical_and(cls_probs == pooled, cls_probs > thres)
+
+    y = torch.arange(geometry["input_shape"][0])
+    x = torch.arange(geometry["input_shape"][1])
+
+    xx, yy = torch.meshgrid(x, y, indexing="xy")
+    xx = xx.to(offset_pred.device)
+    yy = yy.to(offset_pred.device)
+
+    center_y = dy + yy *  geometry["y_res"] + geometry["y_min"]
+    center_x = dx + xx *  geometry["x_res"] + geometry["x_min"]
+    center_x = center_x.squeeze()
+    center_y = center_y.squeeze()
+    l = torch.exp(log_l).squeeze()
+    w = torch.exp(log_w).squeeze()
+    yaw2 = torch.atan2(sin_t, cos_t).squeeze()
+    yaw = yaw2 / 2
 
 
+    boxes = np.stack([cls_ids[selected_idxs].numpy(), 
+                      cls_probs[selected_idxs].numpy(), 
+                      center_x[selected_idxs].numpy(), 
+                      center_y[selected_idxs].numpy(), 
+                      l[selected_idxs].numpy(), 
+                      w[selected_idxs].numpy(), 
+                      yaw[selected_idxs].numpy()])
+    #print(boxes.shape)
+    boxes = np.swapaxes(boxes, 0, 1)
+
+    return boxes
+
+
+def filter_pred_aux(reg_pred, cls_pred, occupancy_pred, config, score_threshold, occupancy_pow, nms_threshold):
+    geometry = config["geometry"]
+
+    ratio = 4
+    reg_pred = reg_pred[0]
+    cls_pred = cls_pred[0]
+    cos_t, sin_t, dx, dy, log_w, log_l = np.split(reg_pred, 6, axis=0)
+
+
+    cls_probs = np.max(cls_pred, axis = 0)
+    cls_probs = cls_probs * np.float_power(occupancy_pred, occupancy_pow)
+    cls_ids = np.argmax(cls_pred, axis = 0)
+
+    if isinstance(score_threshold, list):
+        thres = np.array(score_threshold)
+        thres_arr = np.repeat(np.expand_dims(thres, 1), cls_pred.shape[1], 1)
+        thres_arr = np.repeat(np.expand_dims(thres_arr, 2), cls_pred.shape[2], 2)
+
+        weights = np.repeat(np.expand_dims(np.float_power(occupancy_pred, occupancy_pow), 0), cls_pred.shape[0], 0)
+        comparisons = cls_pred * weights > thres_arr
+        idxs = np.logical_and(np.take_along_axis(comparisons, cls_ids.reshape((1, cls_ids.shape[0], cls_ids.shape[1])), axis = 0).squeeze(), cls_ids != 0)
+    else:
+        idxs = np.logical_and(cls_probs > score_threshold, cls_ids != 0)
+    cls = cls_ids[idxs]
+    scores = cls_probs[idxs]
+    y = np.arange(geometry["label_shape"][0])
+    x = np.arange(geometry["label_shape"][1])
+    xx, yy = np.meshgrid(x, y)
+
+
+    center_y = dy + yy * ratio * geometry["y_res"] + geometry["y_min"]
+    center_x = dx + xx * ratio * geometry["x_res"] + geometry["x_min"]
+    l = np.exp(log_l)
+    w = np.exp(log_w)
+    yaw2 = np.arctan2(sin_t, cos_t)
+    yaw = yaw2 / 2
+    
+    cos_t = np.cos(yaw)
+    sin_t = np.sin(yaw)
+
+    rear_left_x = center_x - l/2 * cos_t - w/2 * sin_t
+    rear_left_y = center_y - l/2 * sin_t + w/2 * cos_t
+    rear_right_x = center_x - l/2 * cos_t + w/2 * sin_t
+    rear_right_y = center_y - l/2 * sin_t - w/2 * cos_t
+    front_right_x = center_x + l/2 * cos_t + w/2 * sin_t
+    front_right_y = center_y + l/2 * sin_t - w/2 * cos_t
+    front_left_x = center_x + l/2 * cos_t - w/2 * sin_t
+    front_left_y = center_y + l/2 * sin_t + w/2 * cos_t
+
+    decoded_reg = np.concatenate([rear_left_x, rear_left_y, rear_right_x, rear_right_y,
+                               front_right_x, front_right_y, front_left_x, front_left_y], axis=0)
+    decoded_reg = np.swapaxes(decoded_reg, 0, 1)
+    decoded_reg = np.swapaxes(decoded_reg, 1, 2)
+    decoded_reg = decoded_reg[idxs]
+    corners = np.reshape(decoded_reg, (-1, 4, 2))
+
+    center_y = center_y[0][idxs]
+    center_x = center_x[0][idxs]
+    l = l[0][idxs]
+    w = w[0][idxs]
+    yaw = yaw[0][idxs]
+
+    if corners.shape[0] == 0:
+        return np.array([]), np.array([])
+    
+    selected_idxs = non_max_suppression(corners, scores, nms_threshold) 
+    boxes = np.stack([cls[selected_idxs], 
+                      scores[selected_idxs], 
+                      center_x[selected_idxs], 
+                      center_y[selected_idxs], 
+                      l[selected_idxs], 
+                      w[selected_idxs], 
+                      yaw[selected_idxs]])
+    boxes = np.swapaxes(boxes, 0, 1)
+    return boxes, None
+    weighted_cls_probs = cls_probs
+    cls_probs = np.max(cls_pred, axis = 0)
+    cls_ids = np.argmax(cls_pred, axis = 0)
+
+    if isinstance(score_threshold, list):
+        thres = np.array(score_threshold)
+        thres_arr = np.repeat(np.expand_dims(thres, 1), cls_pred.shape[1], 1)
+        thres_arr = np.repeat(np.expand_dims(thres_arr, 2), cls_pred.shape[2], 2)
+
+        comparisons = cls_pred > thres_arr
+        weights = np.repeat(np.expand_dims(np.float_power(occupancy_pred, occupancy_pow), 0), cls_pred.shape[0], 0)
+        weighted_comparisons = cls_pred * weights < thres_arr
+        idxs = np.logical_and(np.logical_and(np.take_along_axis(comparisons, cls_ids.reshape((1, cls_ids.shape[0], cls_ids.shape[1])), axis = 0).squeeze(), 
+                                    cls_ids != 0), 
+                             np.take_along_axis(weighted_comparisons, cls_ids.reshape((1, cls_ids.shape[0], cls_ids.shape[1])), axis = 0).squeeze())
+    else:
+        idxs = np.logical_and(np.logical_and(cls_probs > score_threshold, weighted_cls_probs < score_threshold), cls_ids != 0)
+    cls = cls_ids[idxs]
+    scores = weighted_cls_probs[idxs]
+    y = np.arange(geometry["label_shape"][0])
+    x = np.arange(geometry["label_shape"][1])
+    xx, yy = np.meshgrid(x, y)
+
+
+    center_y = dy + yy * ratio * geometry["y_res"] + geometry["y_min"]
+    center_x = dx + xx * ratio * geometry["x_res"] + geometry["x_min"]
+    l = np.exp(log_l)
+    w = np.exp(log_w)
+    yaw2 = np.arctan2(sin_t, cos_t)
+    yaw = yaw2 / 2
+    
+    cos_t = np.cos(yaw)
+    sin_t = np.sin(yaw)
+
+    rear_left_x = center_x - l/2 * cos_t - w/2 * sin_t
+    rear_left_y = center_y - l/2 * sin_t + w/2 * cos_t
+    rear_right_x = center_x - l/2 * cos_t + w/2 * sin_t
+    rear_right_y = center_y - l/2 * sin_t - w/2 * cos_t
+    front_right_x = center_x + l/2 * cos_t + w/2 * sin_t
+    front_right_y = center_y + l/2 * sin_t - w/2 * cos_t
+    front_left_x = center_x + l/2 * cos_t - w/2 * sin_t
+    front_left_y = center_y + l/2 * sin_t + w/2 * cos_t
+
+    decoded_reg = np.concatenate([rear_left_x, rear_left_y, rear_right_x, rear_right_y,
+                               front_right_x, front_right_y, front_left_x, front_left_y], axis=0)
+    decoded_reg = np.swapaxes(decoded_reg, 0, 1)
+    decoded_reg = np.swapaxes(decoded_reg, 1, 2)
+    decoded_reg = decoded_reg[idxs]
+    corners = np.reshape(decoded_reg, (-1, 4, 2))
+
+    center_y = center_y[0][idxs]
+    center_x = center_x[0][idxs]
+    l = l[0][idxs]
+    w = w[0][idxs]
+    yaw = yaw[0][idxs]
+
+    if corners.shape[0] == 0:
+        return boxes, np.array([])
+    
+    selected_idxs = non_max_suppression(corners, scores, nms_threshold) 
+    ignored_boxes = np.stack([cls[selected_idxs], 
+                      scores[selected_idxs], 
+                      center_x[selected_idxs], 
+                      center_y[selected_idxs], 
+                      l[selected_idxs], 
+                      w[selected_idxs], 
+                      yaw[selected_idxs]])
+    ignored_boxes = np.swapaxes(ignored_boxes, 0, 1)
+
+    return boxes, ignored_boxes
 
 
 

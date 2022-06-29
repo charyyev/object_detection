@@ -323,12 +323,13 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/self_training.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/ped.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_self_training_16-06-2022_2/checkpoints/30epoch"
+    #model_path = "/home/stpc/experiments/mobilepixor_self_training_16-06-2022_2/checkpoints/433epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_ped_27-06-2022_1/checkpoints/40epoch"
     model_type = "mobilepixor"
 
-    data_file = "/home/stpc/clean_data/list/self_train.txt"
+    data_file = "/home/stpc/clean_data/list/small_robot_test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
     if model_type == "pixor":

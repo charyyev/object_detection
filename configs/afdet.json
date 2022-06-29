@@ -1,40 +1,41 @@
 {
-    "model": "mobilepixor",
-    "date": "16-06-2022",
-    "ver": 2,
-    "note": "self_training",
+    "model": "afdet",
+    "date": "29-06-2022",
+    "ver": 1,
+    "note": "",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": true,
-    "resume_from": 32,
+    "resume_training": false,
+    "resume_from": 9,
     "data":
     {
-        "auto":
+        "num_classes": 4,
+        "jrdb":
         {
-            "location": "/home/stpc/clean_data/auto",
+            "location": "/home/stpc/clean_data/jrdb",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -17.5,
-                "x_max": 17.5,
-                "z_min": -1.5,
-                "z_max": 2.0,
-                "x_res": 0.05,
-                "y_res": 0.05,
+                "y_min": -40.0,
+                "y_max": 40.0,
+                "x_min": -35.0,
+                "x_max": 35.0,
+                "z_min": -2.0,
+                "z_max": 1.5,
+                "x_res": 0.1,
+                "y_res": 0.1,
                 "z_res": 0.1,
                 "input_shape": [800, 700, 35],
                 "label_shape": [200, 175, 6]
             },
             "objects":
             {
-                "Car": 1, 
-                "Pedestrian": 2, 
-                "Bicycle": 3,
-                "Motorcycle": 3,
-                "Scooter": 3,
-                "Truck": 4,
-                "Bus": 4
+                "Car": 0, 
+                "Pedestrian": 1, 
+                "Bicycle": 2,
+                "Motorcycle": 2,
+                "Scooter": 2,
+                "Truck": 3,
+                "Bus": 3
             }
         },
         "small_robot":
@@ -56,13 +57,13 @@
             },
             "objects":
             {
-                "Car": 1, 
-                "Pedestrian": 2, 
-                "Bicycle": 3,
-                "Motorcycle": 3,
-                "Scooter": 3,
-                "Truck": 4,
-                "Bus": 4
+                "Car": 0, 
+                "Pedestrian": 1, 
+                "Bicycle": 2,
+                "Motorcycle": 2,
+                "Scooter": 2,
+                "Truck": 3,
+                "Bus": 3
             }
         },
         "wego":
@@ -84,13 +85,13 @@
             },
             "objects":
             {
-                "Car": 1, 
-                "Pedestrian": 2, 
-                "Bicycle": 3,
-                "Motorcycle": 3,
-                "Scooter": 3,
-                "Truck": 4,
-                "Bus": 4
+                "Car": 0, 
+                "Pedestrian": 1, 
+                "Bicycle": 2,
+                "Motorcycle": 2,
+                "Scooter": 2,
+                "Truck": 3,
+                "Bus": 3
             }
         },
         "kitti":
@@ -100,8 +101,8 @@
             {
                 "y_min": -40.0,
                 "y_max": 40.0,
-                "x_min": 0.0,
-                "x_max": 70.0,
+                "x_min": -35.0,
+                "x_max": 35.0,
                 "z_min": -2.5,
                 "z_max": 1.0,
                 "x_res": 0.1,
@@ -112,13 +113,13 @@
             },
             "objects":
             {
-                "Car": 1, 
-                "Pedestrian": 2, 
-                "Person_sitting": 2, 
-                "Cyclist": 3,
-                "Van": 4,
-                "Truck": 4,
-                "Tram": 4
+                "Car": 0, 
+                "Pedestrian": 1, 
+                "Person_sitting": 1, 
+                "Cyclist": 2,
+                "Van": 3,
+                "Truck": 3,
+                "Tram": 3
             }
 
         },
@@ -141,14 +142,14 @@
             },
             "objects":
             {
-                "car": 1, 
-                "pedestrian": 2, 
-                "bicycle": 3,
-                "motorcycle": 3,
-                "bus": 4,
-                "truck": 4,
-                "emergency_vehicle": 4,
-                "other_vehicle": 4
+                "car": 0, 
+                "pedestrian": 1, 
+                "bicycle": 2,
+                "motorcycle": 2,
+                "bus": 3,
+                "truck": 3,
+                "emergency_vehicle": 3,
+                "other_vehicle": 3
             }
         },
         "nuscenes":
@@ -170,46 +171,38 @@
             },
             "objects":
             {
-                "car": 1, 
-                "pedestrian": 2, 
-                "bicycle": 3,
-                "motorcycle": 3,
-                "bus": 4,
-                "construction_vehicle": 4,
-                "trailer": 4,
-                "truck": 4
+                "car": 0, 
+                "pedestrian": 1, 
+                "bicycle": 2,
+                "motorcycle": 2,
+                "bus": 3,
+                "construction_vehicle": 3,
+                "trailer": 3,
+                "truck": 3
             }
         }
     },
     "train": 
     {
-        "batch_size": 4,
-        "learning_rate": 0.001,
+        "batch_size": 1,
+        "learning_rate": 0.003,
         "use_differential_learning": false,
         "differential_learning_rate": [0.00001, 0.000001],
         "epochs": 1500,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [100, 200, 1000],
+        "lr_decay_at": [150, 200, 1000],
         "save_every": 1,
-        "data": "/home/stpc/clean_data/list/self_train.txt"
+        "data": "/home/stpc/clean_data/list/jrdb_train.txt"
         
     },
     "val": 
     {
-        "batch_size": 4,
-        "data": "/home/stpc/clean_data/list/small_robot_train.txt",
+        "batch_size": 1,
+        "data": "/home/stpc/clean_data/list/jrdb_val.txt",
         "val_every": 1
     },
-    "loss":
-    {
-        "focal_loss":
-        {
-            "alpha": 0.5,
-            "gamma": 2.0,
-            "reduction": "mean"
-        }
-    },
+    
     "augmentation":
     {
         "p": 0.5,

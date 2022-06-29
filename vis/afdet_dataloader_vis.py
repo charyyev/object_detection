@@ -8,7 +8,7 @@ from vispy.scene import SceneCanvas
 import json
 
 from utils.preprocess import voxelize, voxel_to_points
-from core.dataset import Dataset
+from core.afdet_dataset import Dataset
 
 
 class Vis():
@@ -32,7 +32,7 @@ class Vis():
 
         self.canvas1 = SceneCanvas(keys='interactive',
                                 show=True,
-                                size=(200, 175))
+                                size=(1600, 750))
         self.canvas1.events.key_press.connect(self._key_press)
         self.canvas1.events.draw.connect(self._draw)
 
@@ -46,11 +46,11 @@ class Vis():
 
 
     def plot_boxes(self, class_list, boxes):
-        object_colors = {1: np.array([1, 0, 0, 1]), 
-                         2: np.array([0, 1, 0, 1]), 
-                         3: np.array([0, 0, 1, 1]),
-                         4: np.array([1, 1, 0, 1]),
-                         5: np.array([1, 1, 1, 1])}
+        object_colors = {0: np.array([1, 0, 0, 1]), 
+                         1: np.array([0, 1, 0, 1]), 
+                         2: np.array([0, 0, 1, 1]),
+                         3: np.array([1, 1, 0, 1]),
+                         4: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -109,7 +109,8 @@ class Vis():
         voxel = data["voxel"].permute(2, 1, 0).numpy()
         class_list = data["cls_list"]
         boxes = data["boxes"]
-        cls_map = data["cls_map"]
+        cls_map = data["cls"]
+        reg_mask = data["reg_mask"]
 
         data_type = data["dtype"]
         points = voxel_to_points(voxel, dataset.config[data_type]["geometry"])
@@ -125,24 +126,15 @@ class Vis():
                             size=1.0)
 
         self.plot_boxes(class_list, boxes)
-        sub_map = data["sub_map"]
-        color_img = np.zeros((cls_map.shape[0], cls_map.shape[1], 3))
-
-        color_img[:, :, 0][cls_map == 1] = 1
-        color_img[:, :, 1][cls_map == 1] = 0
-        color_img[:, :, 2][cls_map == 1] = 0
-        color_img[:, :, 0][cls_map == 2] = 0
-        color_img[:, :, 1][cls_map == 2] = 1
-        color_img[:, :, 2][cls_map == 2] = 0
-        color_img[:, :, 0][cls_map == 3] = 1
-        color_img[:, :, 1][cls_map == 3] = 0
-        color_img[:, :, 2][cls_map == 3] = 0
-        color_img[:, :, 0][sub_map == 0] = 0
-        color_img[:, :, 1][sub_map == 0] = 1
-        color_img[:, :, 2][sub_map == 0] = 1
         
+        
+        img = np.max(cls_map, 2)
+        img1 = np.copy(img)
+        img1[reg_mask == 1] = 1
+        img = np.concatenate((img, img1), axis = 0)
 
-        self.image.set_data(np.swapaxes(color_img, 0, 1))
+        self.image.set_data(np.swapaxes(img, 0, 1))
+
 
 
     def _key_press(self, event):
@@ -175,7 +167,7 @@ class Vis():
 if __name__ == "__main__":
     data_file = "/home/stpc/clean_data/list/jrdb_train.txt"
     #data_file = "/home/stpc/clean_data/list/train_small.txt"
-    with open("/home/stpc/proj/object_detection/configs/aux.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
         config = json.load(f)
 
     dataset = Dataset(data_file, config["data"], config["augmentation"], "val")
