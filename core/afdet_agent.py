@@ -7,6 +7,7 @@ from torch.utils.tensorboard import SummaryWriter
 import torch
 import os
 import time
+from tqdm import tqdm
 
 class AFDetAgent():
     def __init__(self, config):
@@ -52,7 +53,7 @@ class AFDetAgent():
         yaw_loss = 0
         start_time = time.time()
         self.model.train()
-        for data in self.train_loader:
+        for data in tqdm(self.train_loader):
             voxel = data["voxel"].to(self.device)
             cls_label = data["cls"].to(self.device)
             offset_label = data["offset"].to(self.device)

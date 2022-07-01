@@ -1,12 +1,12 @@
 {
     "model": "afdet",
-    "date": "29-06-2022",
+    "date": "01-07-2022",
     "ver": 1,
-    "note": "",
+    "note": "nuscenes",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "resume_training": false,
-    "resume_from": 9,
+    "resume_from": 139,
     "data":
     {
         "num_classes": 4,
@@ -193,13 +193,13 @@
         "weight_decay": 0.0001,
         "lr_decay_at": [150, 200, 1000],
         "save_every": 1,
-        "data": "/home/stpc/clean_data/list/jrdb_train.txt"
+        "data": "/home/stpc/clean_data/list/mostly_nuscenes_train.txt"
         
     },
     "val": 
     {
         "batch_size": 1,
-        "data": "/home/stpc/clean_data/list/jrdb_val.txt",
+        "data": "/home/stpc/clean_data/list/mostly_nuscenes_val.txt",
         "val_every": 1
     },
     

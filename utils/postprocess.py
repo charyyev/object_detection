@@ -225,13 +225,13 @@ def filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, config, thres)
     yaw = yaw2 / 2
 
 
-    boxes = np.stack([cls_ids[selected_idxs].numpy(), 
-                      cls_probs[selected_idxs].numpy(), 
-                      center_x[selected_idxs].numpy(), 
-                      center_y[selected_idxs].numpy(), 
-                      l[selected_idxs].numpy(), 
-                      w[selected_idxs].numpy(), 
-                      yaw[selected_idxs].numpy()])
+    boxes = np.stack([cls_ids[selected_idxs].cpu().numpy(), 
+                      cls_probs[selected_idxs].cpu().numpy(), 
+                      center_x[selected_idxs].cpu().numpy(), 
+                      center_y[selected_idxs].cpu().numpy(), 
+                      l[selected_idxs].cpu().numpy(), 
+                      w[selected_idxs].cpu().numpy(), 
+                      yaw[selected_idxs].cpu().numpy()])
     #print(boxes.shape)
     boxes = np.swapaxes(boxes, 0, 1)
 
