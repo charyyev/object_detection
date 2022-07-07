@@ -312,7 +312,7 @@ def filter_pred_aux(reg_pred, cls_pred, occupancy_pred, config, score_threshold,
                       w[selected_idxs], 
                       yaw[selected_idxs]])
     boxes = np.swapaxes(boxes, 0, 1)
-    return boxes, None
+    #return boxes, None
     weighted_cls_probs = cls_probs
     cls_probs = np.max(cls_pred, axis = 0)
     cls_ids = np.argmax(cls_pred, axis = 0)

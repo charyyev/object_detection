@@ -1,12 +1,12 @@
 {
     "model": "afdet",
-    "date": "01-07-2022",
+    "date": "05-07-2022",
     "ver": 1,
-    "note": "nuscenes",
+    "note": "reasonable",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": false,
-    "resume_from": 139,
+    "resume_training": true,
+    "resume_from": 12,
     "data":
     {
         "num_classes": 4,
@@ -185,7 +185,7 @@
     "train": 
     {
         "batch_size": 1,
-        "learning_rate": 0.003,
+        "learning_rate": 0.0003,
         "use_differential_learning": false,
         "differential_learning_rate": [0.00001, 0.000001],
         "epochs": 1500,
@@ -193,13 +193,13 @@
         "weight_decay": 0.0001,
         "lr_decay_at": [150, 200, 1000],
         "save_every": 1,
-        "data": "/home/stpc/clean_data/list/mostly_nuscenes_train.txt"
+        "data": "/home/stpc/clean_data/list/reasonable_train.txt"
         
     },
     "val": 
     {
         "batch_size": 1,
-        "data": "/home/stpc/clean_data/list/mostly_nuscenes_val.txt",
+        "data": "/home/stpc/clean_data/list/reasonable_val.txt",
         "val_every": 1
     },
     

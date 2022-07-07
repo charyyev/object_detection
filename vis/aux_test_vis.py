@@ -83,6 +83,31 @@ class Vis():
             corners[i] = self.rotate_pointZ(corners[i], yaw)[0] + np.array([x, y, 0])
        
         return corners
+
+    def get_corners3D(self, bbox):
+        cls, scores, x, y, l ,w, yaw = bbox
+
+        corners = []
+        front = l / 2
+        back = -l / 2
+        left = w / 2
+        right = -w / 2
+        top = 1
+        bottom = -1
+
+        corners.append([front, left, top])
+        corners.append([front, left, bottom])
+        corners.append([front, right, bottom])
+        corners.append([front, right, top])
+        corners.append([back, left, top])
+        corners.append([back, left, bottom])
+        corners.append([back, right, bottom])
+        corners.append([back, right, top])
+        
+        for i in range(8):
+            corners[i] = self.rotate_pointZ(corners[i], yaw)[0] + np.array([x, y, 0])
+       
+        return corners
         
        
 
@@ -93,6 +118,60 @@ class Vis():
 
         rotated_point = np.matmul(rotation_matrix, np.reshape(point, (3, 1)))
         return np.reshape(rotated_point, (1, 3))
+
+    def plot_boxes3D(self, class_list, scores, boxes):
+        self.gt_bbox.visible = False
+        if len(boxes) == 0:
+            self.bbox.visible = False
+            return
+
+        object_colors = {1: np.array([1, 0, 0, 1]), 
+                         2: np.array([0, 1, 0, 1]), 
+                         3: np.array([0, 0, 1, 1]),
+                         4: np.array([1, 1, 0, 1]),
+                         5: np.array([1, 1, 1, 1])}
+        connect = []
+        points = []
+        colors = []
+        text = []
+        text_pos = []
+       
+        for i, box in enumerate(boxes):
+            color = np.tile(object_colors[class_list[i]], (8, 1))
+            corners = np.array(box)
+            j = 8 * i
+            con = [[j, j + 1],
+                   [j + 1, j + 2],
+                   [j + 2, j + 3],
+                   [j + 3, j],
+                   [j + 4, j + 5],
+                   [j + 5, j + 6],
+                   [j + 6, j + 7],
+                   [j + 7, j + 4],
+                   [j, j + 4],
+                   [j + 1, j + 5],
+                   [j + 2, j + 6],
+                   [j + 3, j + 7]]
+            con = np.array(con)
+
+            if i == 0:
+                points = corners
+                connect = con
+                colors = color
+            else:
+                points = np.concatenate((points, corners), axis = 0)
+                connect = np.concatenate((connect, con), axis = 0)
+                colors = np.concatenate((colors, color), axis = 0)
+
+            text.append(str(scores[i])[:4])
+            text_pos.append(corners[0])
+            #Text(str(scores[i])[ :4], parent=self.scan_view.scene, color='white', pos = corners[0], font_size = 50)
+        self.text.text = text
+        self.text.pos = text_pos
+        self.bbox.visible = True
+        self.bbox.set_data(pos=points,
+                            connect=connect,
+                            color=colors)
 
 
 
@@ -228,9 +307,9 @@ class Vis():
         occupancy_map = torch.sigmoid(pred["occupancy_map"]).squeeze().detach().cpu().numpy()
         reg_pred = pred["reg_map"].detach().cpu().numpy()
         cls_pred = pred["cls_map"].detach().cpu().numpy()
-        threshold = [1, 0.3, 0.01, 0.1, 0.3]
+        threshold = [1, 0.5, 0.3, 0.5, 0.5]
         #threshold = 0.001
-        boxes, ignored_boxes = filter_pred_aux(reg_pred, cls_pred, occupancy_map, self.config[data["dtype"][0]], score_threshold=threshold, occupancy_pow = 0, nms_threshold=0.8)
+        boxes, ignored_boxes = filter_pred_aux(reg_pred, cls_pred, occupancy_map, self.config[data["dtype"][0]], score_threshold=threshold, occupancy_pow = 0, nms_threshold=0.01)
 
         points = data["points"].squeeze().numpy()
 
@@ -240,16 +319,16 @@ class Vis():
         scores = []
         for i in range(boxes.shape[0]):
             box = boxes[i]
-            box_list.append(self.get_corners(box))
+            box_list.append(self.get_corners3D(box))
             class_list.append(box[0])
             scores.append(box[1])
 
 
-        for i in range(ignored_boxes.shape[0]):
-            box = ignored_boxes[i]
-            box_list.append(self.get_corners(box))
-            class_list.append(5)
-            scores.append(box[1])
+        # for i in range(ignored_boxes.shape[0]):
+        #     box = ignored_boxes[i]
+        #     box_list.append(self.get_corners(box))
+        #     class_list.append(5)
+        #     scores.append(box[1])
         
 
         #colors = np.array([0, 1, 1])
@@ -263,7 +342,7 @@ class Vis():
 
 
         if not self.draw_gt or self.task == "test":
-            self.plot_boxes(class_list, scores, box_list)
+            self.plot_boxes3D(class_list, scores, box_list)
         else:
             self.plot_gt_boxes(data["cls_list"], data["boxes"])
         
@@ -346,8 +425,8 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/aux_high_range.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/mobilepixor_fine_tune_aux_28-06-2022_1/checkpoints/19epoch"
-    #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
+    #model_path = "/home/stpc/experiments/mobilepixor_fine_tune_aux_28-06-2022_1/checkpoints/19epoch"
+    model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
     model_type = "mobilepixor"
 
     data_file = "/home/stpc/clean_data/list/fine_tune.txt"

@@ -344,7 +344,7 @@ class Vis():
         #cls_pred = one_hot(data["cls_map"], num_classes=4, device="cpu", dtype=data["cls_map"].dtype).squeeze().detach().cpu().numpy()
 
         cls_probs = np.max(cls_pred, axis = 0)
-
+        #cls_probs = np.zeros((800, 700))
         
 
         self.image.set_data(np.swapaxes(cls_probs, 0, 1))
@@ -389,7 +389,7 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/afdet__30-06-2022_1/checkpoints/11epoch"
+    model_path = "/home/stpc/experiments/afdet_reasonable_05-07-2022_1/checkpoints/34epoch"
     #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
 
