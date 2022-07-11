@@ -327,8 +327,8 @@ if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
         config = json.load(f)
 
-    model_path = "/home/stpc/experiments/afdet_nuscenes_01-07-2022_1/checkpoints/25epoch"
-
+    model_path = "/home/stpc/experiments/afdet_reasonable_08-07-2022_1/checkpoints/34epoch"
+    #model_path = "/home/stpc/experiments/afdet_half/117epoch"
     device = "cuda:0"
     data_type = "small_robot"
     model_type = "mobilepixor"

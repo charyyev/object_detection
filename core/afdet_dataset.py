@@ -212,7 +212,7 @@ class Dataset(Dataset):
             label_y = p[1]
             metric_x, metric_y = trasform_label2metric(np.array(p), geometry, ratio = 1)
             yaw_map[label_y, label_x][0] = reg_target[0]
-            yaw_map[label_y, label_x][0] = reg_target[1]
+            yaw_map[label_y, label_x][1] = reg_target[1]
             offset_map[label_y, label_x][0] = reg_target[2] - metric_x
             offset_map[label_y, label_x][1] = reg_target[3] - metric_y
             size_map[label_y, label_x][0] = np.log(reg_target[4])
