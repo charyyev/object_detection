@@ -389,7 +389,7 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/afdet_reasonable_08-07-2022_1/checkpoints/34epoch"
+    model_path = "/home/stpc/experiments/afdet_reasonable_1-07-2022_1/checkpoints/12epoch"
     #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
 

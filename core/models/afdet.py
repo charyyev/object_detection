@@ -13,6 +13,40 @@ def conv3x3(in_planes, out_planes, stride=1, bias=False):
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=bias)
 
+
+class SCConv(nn.Module):
+    def __init__(self, inplanes, planes, stride = 1, padding = 0, dilation = 1, groups = 1, pooling_r = 4, norm_layer = Empty):
+        super(SCConv, self).__init__()
+        self.k2 = nn.Sequential(
+                    nn.AvgPool2d(kernel_size=pooling_r, stride=pooling_r), 
+                    nn.Conv2d(inplanes, planes, kernel_size=3, stride=1,
+                                padding=padding, dilation=dilation,
+                                groups=groups, bias=False),
+                    norm_layer(planes),
+                    )
+        self.k3 = nn.Sequential(
+                    nn.Conv2d(inplanes, planes, kernel_size=3, stride=1,
+                                padding=padding, dilation=dilation,
+                                groups=groups, bias=False),
+                    norm_layer(planes),
+                    )
+        self.k4 = nn.Sequential(
+                    nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride,
+                                padding=padding, dilation=dilation,
+                                groups=groups, bias=False),
+                    norm_layer(planes),
+                    )
+
+    def forward(self, x):
+        identity = x
+
+        out = torch.sigmoid(torch.add(identity, F.interpolate(self.k2(x), identity.size()[2:]))) # sigmoid(identity + k2)
+        out = torch.mul(self.k3(x), out) # k3 * sigmoid(identity + k2)
+        out = self.k4(out) # k4
+
+        return out
+
+
 class RPN(nn.Module):
     def __init__(self,
                  use_norm=True,
@@ -52,6 +86,7 @@ class RPN(nn.Module):
             ConvTranspose2d = change_default_args(bias=True)(
                 nn.ConvTranspose2d)
 
+
         # note that when stride > 1, conv2d with same padding isn't
         # equal to pad-conv2d. we should use pad-conv2d.
         block2_input_filters = num_filters[0]
@@ -65,8 +100,8 @@ class RPN(nn.Module):
         )
         for i in range(layer_nums[0]):
             self.block1.add(
-                Conv2d(num_filters[0], num_filters[0], 3, padding=1))
-            self.block1.add(BatchNorm2d(num_filters[0]))
+                SCConv(num_filters[0], num_filters[0], padding=1, norm_layer=BatchNorm2d))
+            #self.block1.add(BatchNorm2d(num_filters[0]))
             self.block1.add(nn.ReLU())
         self.deconv1 = Sequential(
             ConvTranspose2d(
@@ -89,8 +124,7 @@ class RPN(nn.Module):
         )
         for i in range(layer_nums[1]):
             self.block2.add(
-                Conv2d(num_filters[1], num_filters[1], 3, padding=1))
-            self.block2.add(BatchNorm2d(num_filters[1]))
+                SCConv(num_filters[1], num_filters[1], padding=1, norm_layer=BatchNorm2d))
             self.block2.add(nn.ReLU())
         self.deconv2 = Sequential(
             ConvTranspose2d(

@@ -1,12 +1,12 @@
 {
     "model": "afdet",
-    "date": "08-07-2022",
+    "date": "1-07-2022",
     "ver": 1,
     "note": "reasonable",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
     "resume_training": true,
-    "resume_from": 4,
+    "resume_from": 12,
     "data":
     {
         "num_classes": 4,
@@ -185,7 +185,7 @@
     "train": 
     {
         "batch_size": 1,
-        "learning_rate": 0.00006,
+        "learning_rate": 0.00003,
         "use_differential_learning": false,
         "differential_learning_rate": [0.00001, 0.000001],
         "epochs": 1500,
