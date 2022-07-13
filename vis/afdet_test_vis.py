@@ -307,7 +307,8 @@ class Vis():
         yaw_pred = pred["yaw"]
         cls_pred = pred["cls"]
         #threshold = [1, 0.3, 0.01, 0.1, 0.3]
-        threshold = 0.25
+        #threshold = 0.25
+        threshold = torch.tensor([0.5, 0.6, 0.1, 0.2])
         boxes = filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, self.config[data["dtype"][0]], threshold)
         print(boxes.shape)
         points = data["points"].squeeze().numpy()
@@ -389,7 +390,7 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/afdet_reasonable_08-07-2022_1/checkpoints/34epoch"
+    model_path = "/home/stpc/experiments/afdet_reasonable_1-07-2022_1/checkpoints/31epoch"
     #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
 

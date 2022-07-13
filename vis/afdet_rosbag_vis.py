@@ -87,7 +87,7 @@ class Vis():
         yaw_pred = pred["yaw"]
         cls_pred = pred["cls"]
         
-        threshold = 0.35
+        threshold = 0.5
         config = {"geometry": self.geometry}
         boxes = filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, config, threshold)
 
@@ -324,11 +324,11 @@ class Vis():
 if __name__ == "__main__":
     bag_file = "/home/stpc/rosbags/ai_2022-06-14-17-11-07.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
-    with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/afdet_half_range.json", 'r') as f:
         config = json.load(f)
 
-    model_path = "/home/stpc/experiments/afdet_reasonable_08-07-2022_1/checkpoints/34epoch"
-    #model_path = "/home/stpc/experiments/afdet_half/117epoch"
+    #model_path = "/home/stpc/experiments/afdet_reasonable_1-07-2022_1/checkpoints/31epoch"
+    model_path = "/home/stpc/experiments/afdet_half/153epoch"
     device = "cuda:0"
     data_type = "small_robot"
     model_type = "mobilepixor"
