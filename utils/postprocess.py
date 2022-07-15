@@ -203,10 +203,12 @@ def filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, config, thres)
     log_w, log_l = torch.chunk(size_pred, 2, dim = 0)
 
     cls_probs, cls_ids = torch.max(cls_pred, dim = 0)
-
+    thres = thres.to(offset_pred.device)
     score_threshold = thres.unsqueeze(1).repeat(1, cls_pred.shape[1])
     score_threshold = score_threshold.unsqueeze(2).repeat(1, 1, cls_pred.shape[2])
     thres = score_threshold.gather(0, cls_ids.unsqueeze(0))
+
+    
    
     pooled = F.max_pool2d(cls_probs.unsqueeze(0), 3, 1, 1).squeeze()
     selected_idxs = torch.logical_and(cls_probs == pooled, cls_probs > thres[0])
