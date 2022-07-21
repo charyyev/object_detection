@@ -1,5 +1,7 @@
+from numpy import gradient
 from core.afdet_dataset import Dataset
 from core.models.afdet import AFDet
+from core.models.afdet import RAAFDet
 from core.modified_losses import AFDetLoss
 
 from torch.utils.data import DataLoader
@@ -14,6 +16,8 @@ class AFDetAgent():
         self.config = config
         self.device = config["device"]
         self.prev_val_loss = 1e6
+
+        self.gradient_accumulations = 8
 
 
     def prepare_loaders(self):
@@ -31,7 +35,10 @@ class AFDetAgent():
         momentum = self.config["train"]["momentum"]
         weight_decay = self.config["train"]["weight_decay"]
         lr_decay_at = self.config["train"]["lr_decay_at"]
-        self.model = AFDet(self.config["data"]["num_classes"])
+        if self.config["model"] == "afdet":
+            self.model = AFDet(self.config["data"]["num_classes"])
+        else:
+            self.model = RAAFDet()
 
         self.model.to(self.device)
         self.loss = AFDetLoss()
@@ -51,6 +58,7 @@ class AFDetAgent():
         train_loss = 0
         size_loss = 0
         yaw_loss = 0
+        batch_id = 0
         start_time = time.time()
         self.model.train()
         for data in tqdm(self.train_loader):
@@ -69,13 +77,20 @@ class AFDetAgent():
                 "yaw": yaw_label,
                 "reg_mask": reg_mask
             }
-            self.optimizer.zero_grad()
+            #self.optimizer.zero_grad()
 
             pred = self.model(voxel)
             loss, cls, offset, size, yaw = self.loss(pred, target)
 
-            loss.backward()
-            self.optimizer.step()
+            (loss / self.gradient_accumulations).backward()
+
+            if (batch_id + 1) % self.gradient_accumulations == 0:
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+
+            batch_id += 1  
+            #loss.backward()
+            #self.optimizer.step()
 
             cls_loss += cls
             offset_loss += offset

@@ -322,12 +322,12 @@ class Vis():
 
 
 if __name__ == "__main__":
-    bag_file = "/home/stpc/rosbags/ai_2022-06-14-17-11-07.bag"
+    bag_file = "/home/stpc/rosbags/pangyo.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
-    with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/afdet_half_range.json", 'r') as f:
         config = json.load(f)
 
-    model_path = "/home/stpc/experiments/afdet_reasonable_08-07-2022_1/checkpoints/34epoch"
+    model_path = "/home/stpc/experiments/scconv/107epoch"
     #model_path = "/home/stpc/experiments/afdet_half/117epoch"
     device = "cuda:0"
     data_type = "small_robot"
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     
     max_frames = 5000
     bag = rosbag.Bag(bag_file)
-    lidar_topics = ["/velodyne_points"]
+    lidar_topics = ["/points_raw"]
     frames = []
     for topic, msg, t in bag.read_messages():
         if len(frames) > max_frames:

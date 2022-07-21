@@ -1,12 +1,12 @@
 {
-    "model": "afdet",
-    "date": "08-07-2022",
+    "model": "raafdet",
+    "date": "20-07-2022",
     "ver": 1,
-    "note": "reasonable",
+    "note": "",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": false,
-    "resume_from": 4,
+    "resume_training": true,
+    "resume_from": 47,
     "data":
     {
         "num_classes": 4,
@@ -184,8 +184,8 @@
     },
     "train": 
     {
-        "batch_size": 1,
-        "learning_rate": 0.00006,
+        "batch_size": 2,
+        "learning_rate": 0.0001,
         "use_differential_learning": false,
         "differential_learning_rate": [0.00001, 0.000001],
         "epochs": 1500,

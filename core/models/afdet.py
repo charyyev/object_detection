@@ -7,6 +7,8 @@ import sys
 from collections import OrderedDict
 
 from core.torchplus import Sequential, Empty, change_default_args
+from core.torchplus import kaiming_init
+from core.models.biattention_conv2d_concat_initW import AttentionConv2D
 
 def conv3x3(in_planes, out_planes, stride=1, bias=False):
     """3x3 convolution with padding"""
@@ -138,7 +140,6 @@ class RPN(nn.Module):
         
 
     def forward(self, x):
-
         x = self.block1(x)
         up1 = self.deconv1(x)
         x = self.block2(x)
@@ -181,6 +182,82 @@ class Header(nn.Module):
 
         return pred
 
+class SepHead(nn.Module):
+    def __init__(
+        self,
+        in_channels,
+        heads,
+        head_conv=64,
+        final_kernel=1,
+        bn=False,
+        init_bias=-2.19,
+        attention_flag=True,
+        **kwargs,
+    ):
+        super(SepHead, self).__init__(**kwargs)
+        self.heads = heads
+        self._heatmap = None
+        for head in self.heads:
+            classes, num_conv = self.heads[head]
+
+            fc = Sequential()
+            if attention_flag:
+                for i in range(num_conv-1):
+                    fc.add(AttentionConv2D(in_channels, head_conv,
+                                     kernel_size=final_kernel, stride=1,
+                                     padding=final_kernel // 2, bias=True,
+                                     is_header=True, last_attention=True))
+            else:
+                for i in range(num_conv-1):
+                    fc.add(nn.Conv2d(in_channels, head_conv,
+                                     kernel_size=final_kernel, stride=1,
+                                     padding=final_kernel // 2, bias=True))
+            if bn and (not attention_flag):
+                fc.add(nn.BatchNorm2d(head_conv))
+            fc.add(nn.ReLU())
+
+            fc.add(nn.Conv2d(head_conv, classes,
+                    kernel_size=final_kernel, stride=1,
+                    padding=final_kernel // 2, bias=True))
+
+            # init weight.
+            '''
+            elif 'occlusion' in head:
+                normal_init(fc[-1], std=0.01)
+            '''
+
+            if 'cls' in head:
+                fc[-1].bias.data.fill_(init_bias)
+            else:
+                for m in fc.modules():
+                    if isinstance(m, nn.Conv2d):
+                        kaiming_init(m)
+                # init attention weight.
+                for m in fc.modules():
+                    if isinstance(m, AttentionConv2D):
+                        m.init_attention_weight()
+
+            # setattr() is used to assign the object attribute its value
+            # object (self), name (head / 'reg' like key), value (fc)
+            self.__setattr__(head, fc)
+
+    def forward(self, x):
+        ret_dict = dict()
+        for head in self.heads:
+            ret_dict[head] = self.__getattr__(head)(x)
+
+        # self._heatmap = ret_dict['hm']
+        return ret_dict
+ 
+    @property
+    def hm_attention(self):
+        return self.__getattr__('cls')[0].att_map
+
+    @property
+    def heatmap(self):
+        return torch.clamp(
+            self._heatmap.sigmoid_(), min=1e-4, max=1-1e-4)
+
 
 class AFDet(nn.Module):
     def __init__(self, num_classes = 4):
@@ -193,9 +270,35 @@ class AFDet(nn.Module):
         pred = self.header(features)
 
         return pred
+        
+
+
+class RAAFDet(nn.Module):
+    def __init__(self):
+        super(RAAFDet, self).__init__()
+        heads = {"cls": [4, 2],
+                 "offset": [2, 2],
+                 "size": [2, 2],
+                 "yaw": [2, 2]}
+
+        self.tasks = SepHead(in_channels = 128, heads = heads)
+        self.backbone = RPN()
+
+    def forward(self, x):
+        features = self.backbone(x)
+        pred = self.tasks(features)
+        pred["cls"] = self._sigmoid(pred["cls"])
+        return pred    
+
+    def _sigmoid(self, x):
+        y = torch.clamp(x.sigmoid_(), min=1e-4, max=1-1e-4)
+        return y
+
 
 if __name__ == "__main__":
-    model = AFDet()
-    x = torch.rand([1, 35, 800, 700])
+    model = RAAFDet()
+    x = torch.rand([1, 35, 400, 400])
+    #model.to("cuda:0")
     pred = model(x)
-    print("number of parameters: ", sum(p.numel() for p in model.parameters() if p.requires_grad))
+    print(pred["cls"].shape)
+    #print("number of parameters: ", sum(p.numel() for p in model.parameters() if p.requires_grad))

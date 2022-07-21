@@ -25,7 +25,7 @@ if __name__ == "__main__":
             agent = HotSpotAgent(config)
         elif config["strategy"] == "aux":
             agent = AuxAgent(config)
-    elif config["model"] == "afdet":
+    elif config["model"] == "afdet" or config["model"] == "raafdet":
         print("AFDet")
         agent = AFDetAgent(config)
     else:

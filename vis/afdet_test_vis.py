@@ -16,7 +16,7 @@ from utils.preprocess import voxelize, voxel_to_points
 from utils.postprocess import filter_pred_afdet
 from core.afdet_dataset import Dataset
 
-from core.models.afdet import AFDet
+from core.models.afdet import AFDet, RAAFDet
 
 class Vis():
     def __init__(self, data_loader, model, config, task = "val"):
@@ -387,16 +387,19 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/afdet.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/afdet_half_range.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/afdet_reasonable_1-07-2022_1/checkpoints/12epoch"
+    model_path = "/home/stpc/experiments/raafdet__20-07-2022_1/checkpoints/48epoch"
     #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
 
     data_file = "/home/stpc/clean_data/list/fine_tune.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
-    model = AFDet(config["data"]["num_classes"])
+    if config["model"] == "afdet":
+        model = AFDet(config["data"]["num_classes"])
+    else:
+        model = RAAFDet()
     #model.to(config['device'])
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
     #device = config["device"]
