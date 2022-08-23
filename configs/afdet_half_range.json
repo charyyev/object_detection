@@ -1,12 +1,12 @@
 {
-    "model": "raafdet",
-    "date": "20-07-2022",
+    "model": "afdet",
+    "date": "23-08-2022",
     "ver": 1,
-    "note": "",
+    "note": "half_range",
     "device": "cuda:0",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": true,
-    "resume_from": 47,
+    "resume_training": false,
+    "resume_from": 54,
     "data":
     {
         "num_classes": 4,
@@ -15,27 +15,23 @@
             "location": "/home/stpc/clean_data/jrdb",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -20.0,
-                "x_max": 20.0,
+                "y_min": -30.0,
+                "y_max": 30.0,
+                "x_min": -30.0,
+                "x_max": 30.0,
                 "z_min": -2.0,
                 "z_max": 1.5,
                 "x_res": 0.1,
                 "y_res": 0.1,
                 "z_res": 0.1,
-                "input_shape": [400, 400, 35],
-                "label_shape": [400, 400, 6]
+                "input_shape": [600, 600, 35],
+                "label_shape": [600, 600, 6]
             },
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Bicycle": 2,
-                "Motorcycle": 2,
-                "Scooter": 2,
-                "Truck": 3,
-                "Bus": 3
+                "Truck": 1,
+                "Bus": 2
             }
         },
         "small_robot":
@@ -43,27 +39,23 @@
             "location": "/home/stpc/clean_data/small_robot",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -20.0,
-                "x_max": 20.0,
+                "y_min": -30.0,
+                "y_max": 30.0,
+                "x_min": -30.0,
+                "x_max": 30.0,
                 "z_min": -1.5,
                 "z_max": 2.0,
                 "x_res": 0.1,
                 "y_res": 0.1,
                 "z_res": 0.1,
-                "input_shape": [400, 400, 35],
-                "label_shape": [400, 400, 6]
+                "input_shape": [600, 600, 35],
+                "label_shape": [600, 600, 6]
             },
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Bicycle": 2,
-                "Motorcycle": 2,
-                "Scooter": 2,
-                "Truck": 3,
-                "Bus": 3
+                "Truck": 1,
+                "Bus": 2
             }
         },
         "wego":
@@ -71,27 +63,23 @@
             "location": "/home/stpc/clean_data/wego",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -20.0,
-                "x_max": 20.0,
+                "y_min": -30.0,
+                "y_max": 30.0,
+                "x_min": -30.0,
+                "x_max": 30.0,
                 "z_min": -2.5,
                 "z_max": 1.0,
                 "x_res": 0.1,
                 "y_res": 0.1,
                 "z_res": 0.1,
-                "input_shape": [400, 400, 35],
-                "label_shape": [400, 400, 6]
+                "input_shape": [600, 600, 35],
+                "label_shape": [600, 600, 6]
             },
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Bicycle": 2,
-                "Motorcycle": 2,
-                "Scooter": 2,
-                "Truck": 3,
-                "Bus": 3
+                "Truck": 1,
+                "Bus": 2
             }
         },
         "kitti":
@@ -99,27 +87,24 @@
             "location": "/home/stpc/clean_data/kitti",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -20.0,
-                "x_max": 20.0,
+                "y_min": -30.0,
+                "y_max": 30.0,
+                "x_min": -30.0,
+                "x_max": 30.0,
                 "z_min": -2.5,
                 "z_max": 1.0,
                 "x_res": 0.1,
                 "y_res": 0.1,
                 "z_res": 0.1,
-                "input_shape": [400, 400, 35],
-                "label_shape": [400, 400, 6]
+                "input_shape": [600, 600, 35],
+                "label_shape": [600, 600, 6]
             },
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Person_sitting": 1, 
-                "Cyclist": 2,
-                "Van": 3,
-                "Truck": 3,
-                "Tram": 3
+                "Van": 1,
+                "Truck": 1,
+                "Tram": 1
             }
 
         },
@@ -128,28 +113,25 @@
             "location": "/home/stpc/clean_data/lyft",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -20.0,
-                "x_max": 20.0,
+                "y_min": -30.0,
+                "y_max": 30.0,
+                "x_min": -30.0,
+                "x_max": 30.0,
                 "z_min": -2.5,
                 "z_max": 1.0,
                 "x_res": 0.1,
                 "y_res": 0.1,
                 "z_res": 0.1,
-                "input_shape": [400, 400, 35],
-                "label_shape": [400, 400, 6]
+                "input_shape": [600, 600, 35],
+                "label_shape": [600, 600, 6]
             },
             "objects":
             {
                 "car": 0, 
-                "pedestrian": 1, 
-                "bicycle": 2,
-                "motorcycle": 2,
-                "bus": 3,
-                "truck": 3,
-                "emergency_vehicle": 3,
-                "other_vehicle": 3
+                "bus": 2,
+                "truck": 1,
+                "emergency_vehicle": 1,
+                "other_vehicle": 1
             }
         },
         "nuscenes":
@@ -157,49 +139,46 @@
             "location": "/home/stpc/clean_data/nuscenes",
             "geometry": 
             {
-                "y_min": -20.0,
-                "y_max": 20.0,
-                "x_min": -20.0,
-                "x_max": 20.0,
+                "y_min": -30.0,
+                "y_max": 30.0,
+                "x_min": -30.0,
+                "x_max": 30.0,
                 "z_min": -2.5,
                 "z_max": 1.0,
                 "x_res": 0.1,
                 "y_res": 0.1,
                 "z_res": 0.1,
-                "input_shape": [400, 400, 35],
-                "label_shape": [400, 400, 6]
+                "input_shape": [600, 600, 35],
+                "label_shape": [600, 600, 6]
             },
             "objects":
             {
                 "car": 0, 
-                "pedestrian": 1, 
-                "bicycle": 2,
-                "motorcycle": 2,
-                "bus": 3,
-                "construction_vehicle": 3,
-                "trailer": 3,
-                "truck": 3
+                "bus": 2,
+                "construction_vehicle": 1,
+                "trailer": 1,
+                "truck": 1
             }
         }
     },
     "train": 
     {
-        "batch_size": 2,
-        "learning_rate": 0.0001,
+        "batch_size": 4,
+        "learning_rate": 0.003,
         "use_differential_learning": false,
         "differential_learning_rate": [0.00001, 0.000001],
         "epochs": 1500,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [150, 200, 1000],
+        "lr_decay_at": [25, 50, 75],
         "save_every": 1,
-        "data": "/home/stpc/clean_data/list/reasonable_train.txt"
+        "data": "/home/stpc/clean_data/list/mostly_nuscenes_train.txt"
         
     },
     "val": 
     {
         "batch_size": 1,
-        "data": "/home/stpc/clean_data/list/reasonable_val.txt",
+        "data": "/home/stpc/clean_data/list/mostly_nuscenes_val.txt",
         "val_every": 1
     },
     

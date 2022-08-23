@@ -16,7 +16,7 @@ from vispy.scene.visuals import Text
 
 from core.models.pixor import PIXOR
 from core.models.mobilepixor_aux import MobilePIXOR
-from core.models.afdet import AFDet
+from core.models.afdet import AFDet, RAAFDet
 from tools.lidar_conversion import pcl_to_numpy
 from utils.preprocess import voxelize
 from utils.postprocess import filter_pred, filter_pred_aux, filter_pred_afdet
@@ -322,12 +322,12 @@ class Vis():
 
 
 if __name__ == "__main__":
-    bag_file = "/home/stpc/rosbags/pangyo.bag"
+    bag_file = "/home/stpc/rosbags/ai_2022-06-14-17-11-07.bag"
     bag_name = bag_file.split("/")[-1].split(".")[0]
     with open("/home/stpc/proj/object_detection/configs/afdet_half_range.json", 'r') as f:
         config = json.load(f)
 
-    model_path = "/home/stpc/experiments/scconv/107epoch"
+    model_path = "/home/stpc/experiments/raafdet__20-07-2022_1/checkpoints/98epoch"
     #model_path = "/home/stpc/experiments/afdet_half/117epoch"
     device = "cuda:0"
     data_type = "small_robot"
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     
     max_frames = 5000
     bag = rosbag.Bag(bag_file)
-    lidar_topics = ["/points_raw"]
+    lidar_topics = ["/velodyne_points"]
     frames = []
     for topic, msg, t in bag.read_messages():
         if len(frames) > max_frames:
@@ -350,7 +350,10 @@ if __name__ == "__main__":
     #     model = MobilePIXOR(config["data"]["kitti"]["geometry"])
     # elif model_type == "pixor":
     #     model = PIXOR(config["data"]["kitti"]["geometry"])
-    model = AFDet(config["data"]["num_classes"])
+    if config["model"] == "afdet":
+        model = AFDet(config["data"]["num_classes"])
+    else:
+        model = RAAFDet()
     model.to(device)
     model.load_state_dict(torch.load(model_path, map_location=device))
 

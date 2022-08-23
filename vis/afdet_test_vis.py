@@ -307,7 +307,7 @@ class Vis():
         yaw_pred = pred["yaw"]
         cls_pred = pred["cls"]
         #threshold = [1, 0.3, 0.01, 0.1, 0.3]
-        threshold = 0.25
+        threshold = 0.1
         boxes = filter_pred_afdet(cls_pred, offset_pred, size_pred, yaw_pred, self.config[data["dtype"][0]], threshold)
         print(boxes.shape)
         points = data["points"].squeeze().numpy()
@@ -389,11 +389,12 @@ class Vis():
 if __name__ == "__main__":
     with open("/home/stpc/proj/object_detection/configs/afdet_half_range.json", 'r') as f:
         config = json.load(f)
-    model_path = "/home/stpc/experiments/raafdet__20-07-2022_1/checkpoints/48epoch"
+    #model_path = "/home/stpc/experiments/raafdet__20-07-2022_1/checkpoints/98epoch"
+    model_path = "/home/stpc/experiments/afdet_half_range_23-08-2022_1/checkpoints/40epoch"
     #model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
 
 
-    data_file = "/home/stpc/clean_data/list/fine_tune.txt"
+    data_file = "/home/stpc/clean_data/list/overfit1.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
     if config["model"] == "afdet":

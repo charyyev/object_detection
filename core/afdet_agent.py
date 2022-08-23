@@ -10,14 +10,13 @@ import torch
 import os
 import time
 from tqdm import tqdm
+import torch.nn as nn
 
 class AFDetAgent():
     def __init__(self, config):
         self.config = config
         self.device = config["device"]
         self.prev_val_loss = 1e6
-
-        self.gradient_accumulations = 8
 
 
     def prepare_loaders(self):
@@ -40,7 +39,9 @@ class AFDetAgent():
         else:
             self.model = RAAFDet()
 
+        self.model = nn.DataParallel(self.model)
         self.model.to(self.device)
+        
         self.loss = AFDetLoss()
         if self.config["train"]["use_differential_learning"]:
             dif_learning_rate = self.config["train"]["differential_learning_rate"]
@@ -77,20 +78,13 @@ class AFDetAgent():
                 "yaw": yaw_label,
                 "reg_mask": reg_mask
             }
-            #self.optimizer.zero_grad()
+            self.optimizer.zero_grad()
 
             pred = self.model(voxel)
             loss, cls, offset, size, yaw = self.loss(pred, target)
-
-            (loss / self.gradient_accumulations).backward()
-
-            if (batch_id + 1) % self.gradient_accumulations == 0:
-                self.optimizer.step()
-                self.optimizer.zero_grad()
-
-            batch_id += 1  
-            #loss.backward()
-            #self.optimizer.step()
+  
+            loss.backward()
+            self.optimizer.step()
 
             cls_loss += cls
             offset_loss += offset
@@ -129,7 +123,7 @@ class AFDetAgent():
 
             if epoch % self.config["train"]["save_every"] == 0:
                 path = os.path.join(self.checkpoints_dir, str(epoch) + "epoch")
-                torch.save(self.model.state_dict(), path)
+                torch.save(self.model.module.state_dict(), path)
 
             if (epoch + 1) % self.config["val"]["val_every"] == 0:
                 self.validate(epoch)
@@ -186,7 +180,7 @@ class AFDetAgent():
         if val_loss / len(self.val_loader) < self.prev_val_loss:
             self.prev_val_loss = val_loss / len(self.val_loader)
             path = os.path.join(self.best_checkpoints_dir, str(epoch) + "epoch")
-            torch.save(self.model.state_dict(), path)
+            torch.save(self.model.module.state_dict(), path)
             
 
 

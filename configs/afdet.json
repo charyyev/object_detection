@@ -1,11 +1,11 @@
 {
     "model": "afdet",
-    "date": "1-07-2022",
+    "date": "23-08-2022",
     "ver": 1,
-    "note": "reasonable",
-    "device": "cuda:0",
+    "note": "overfit",
+    "device": "cuda",
     "experiments": "/home/stpc/experiments/",
-    "resume_training": true,
+    "resume_training": false,
     "resume_from": 12,
     "data":
     {
@@ -30,12 +30,8 @@
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Bicycle": 2,
-                "Motorcycle": 2,
-                "Scooter": 2,
-                "Truck": 3,
-                "Bus": 3
+                "Truck": 1,
+                "Bus": 2
             }
         },
         "small_robot":
@@ -58,12 +54,8 @@
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Bicycle": 2,
-                "Motorcycle": 2,
-                "Scooter": 2,
-                "Truck": 3,
-                "Bus": 3
+                "Truck": 1,
+                "Bus": 2
             }
         },
         "wego":
@@ -86,12 +78,8 @@
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Bicycle": 2,
-                "Motorcycle": 2,
-                "Scooter": 2,
-                "Truck": 3,
-                "Bus": 3
+                "Truck": 1,
+                "Bus": 2
             }
         },
         "kitti":
@@ -114,12 +102,9 @@
             "objects":
             {
                 "Car": 0, 
-                "Pedestrian": 1, 
-                "Person_sitting": 1, 
-                "Cyclist": 2,
-                "Van": 3,
-                "Truck": 3,
-                "Tram": 3
+                "Van": 1,
+                "Truck": 1,
+                "Tram": 1
             }
 
         },
@@ -143,13 +128,10 @@
             "objects":
             {
                 "car": 0, 
-                "pedestrian": 1, 
-                "bicycle": 2,
-                "motorcycle": 2,
-                "bus": 3,
-                "truck": 3,
-                "emergency_vehicle": 3,
-                "other_vehicle": 3
+                "bus": 2,
+                "truck": 1,
+                "emergency_vehicle": 1,
+                "other_vehicle": 1
             }
         },
         "nuscenes":
@@ -172,35 +154,32 @@
             "objects":
             {
                 "car": 0, 
-                "pedestrian": 1, 
-                "bicycle": 2,
-                "motorcycle": 2,
-                "bus": 3,
-                "construction_vehicle": 3,
-                "trailer": 3,
-                "truck": 3
+                "bus": 2,
+                "construction_vehicle": 1,
+                "trailer": 1,
+                "truck": 1
             }
         }
     },
     "train": 
     {
         "batch_size": 1,
-        "learning_rate": 0.00003,
+        "learning_rate": 0.003,
         "use_differential_learning": false,
         "differential_learning_rate": [0.00001, 0.000001],
         "epochs": 1500,
         "momentum": 0.9,
         "weight_decay": 0.0001,
-        "lr_decay_at": [150, 200, 1000],
+        "lr_decay_at": [25, 50, 75],
         "save_every": 1,
-        "data": "/home/stpc/clean_data/list/reasonable_train.txt"
+        "data": "/home/stpc/clean_data/list/overfit1.txt"
         
     },
     "val": 
     {
         "batch_size": 1,
-        "data": "/home/stpc/clean_data/list/reasonable_val.txt",
-        "val_every": 1
+        "data": "/home/stpc/clean_data/list/overfit1.txt",
+        "val_every": 1000
     },
     
     "augmentation":

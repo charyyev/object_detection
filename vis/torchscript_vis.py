@@ -20,6 +20,7 @@ from core.dataset import Dataset
 from utils.one_hot import one_hot
 from core.losses import CustomLoss
 from core.models.mobilepixor_aux_torchscript import MobilePIXOR
+from core.models.afdet_torchscript import AFDet
 
 
 class Vis():
@@ -103,11 +104,11 @@ class Vis():
             self.bbox.visible = False
             return
 
-        object_colors = {1: np.array([1, 0, 0, 1]), 
-                         2: np.array([0, 1, 0, 1]), 
-                         3: np.array([0, 0, 1, 1]),
-                         4: np.array([1, 1, 0, 1]),
-                         5: np.array([1, 1, 1, 1])}
+        object_colors = {0: np.array([1, 0, 0, 1]), 
+                         1: np.array([0, 1, 0, 1]), 
+                         2: np.array([0, 0, 1, 1]),
+                         3: np.array([1, 1, 0, 1]),
+                         4: np.array([1, 1, 1, 1])}
         connect = []
         points = []
         colors = []
@@ -231,46 +232,48 @@ class Vis():
         y_res = geometry["y_res"]
         
         voxel = data["voxel"]
-        #voxel = voxel.half()
-        #voxel = voxel.to("cuda:0")
+        voxel = voxel.half()
+        voxel = voxel.to("cuda:0")
         # boxes = self.model(voxel, x_min, y_min, x_res, y_res, 0.1).detach().cpu().numpy()
-        pred = self.model(voxel, x_min, y_min, x_res, y_res, torch.tensor([1, 0.1, 0.1, 0.1, 0.1]), 1)
+        boxes = self.model(voxel, x_min, y_min, x_res, y_res, 0.3)
+        boxes = boxes.cpu()
+        
         # print(boxes.shape)
-        # points = data["points"].squeeze().numpy()
-
-        # box_list = []
-        # class_list = []
-        # scores = []
-        # for i in range(boxes.shape[0]):
-        #     box = boxes[i]
-        #     box_list.append(self.get_corners(box))
-        #     class_list.append(box[0])
-        #     scores.append(box[1])
-
-        # print(class_list) 
-        cls = pred[:, 0].detach().cpu().numpy()
-        scores = pred[:, 1].detach().cpu().numpy()
-        corners = pred[:, 2:].reshape(-1, 4, 2).detach().cpu().numpy()
-
-        selected_idxs = non_max_suppression(corners, scores, 0.1)
-        selected_corners = corners[selected_idxs]        
-
-
-        selected_boxes = corner_to_center_box2d(selected_corners)
-        cls = cls[selected_idxs].reshape(-1, 1)
-        scores = scores[selected_idxs].reshape(-1, 1)
-        selected_boxes = np.concatenate((cls, scores , selected_boxes), axis = 1)
-
         points = data["points"].squeeze().numpy()
 
         box_list = []
         class_list = []
         scores = []
-        for i in range(selected_boxes.shape[0]):
-            box = selected_boxes[i]
+        for i in range(boxes.shape[0]):
+            box = boxes[i]
             box_list.append(self.get_corners(box))
-            class_list.append(box[0])
+            class_list.append(int(box[0]))
             scores.append(box[1])
+
+        # print(class_list) 
+        # cls = pred[:, 0].detach().cpu().numpy()
+        # scores = pred[:, 1].detach().cpu().numpy()
+        # corners = pred[:, 2:].reshape(-1, 4, 2).detach().cpu().numpy()
+
+        # selected_idxs = non_max_suppression(corners, scores, 0.1)
+        # selected_corners = corners[selected_idxs]        
+
+
+        # selected_boxes = corner_to_center_box2d(selected_corners)
+        # cls = cls[selected_idxs].reshape(-1, 1)
+        # scores = scores[selected_idxs].reshape(-1, 1)
+        # selected_boxes = np.concatenate((cls, scores , selected_boxes), axis = 1)
+
+        # points = data["points"].squeeze().numpy()
+
+        # box_list = []
+        # class_list = []
+        # scores = []
+        # for i in range(selected_boxes.shape[0]):
+        #     box = selected_boxes[i]
+        #     box_list.append(self.get_corners(box))
+        #     class_list.append(box[0])
+        #     scores.append(box[1])
         
 
         #colors = np.array([0, 1, 1])
@@ -326,24 +329,24 @@ class Vis():
 
 
 if __name__ == "__main__":
-    with open("/home/stpc/proj/object_detection/configs/more_classes.json", 'r') as f:
+    with open("/home/stpc/proj/object_detection/configs/afdet_half_range.json", 'r') as f:
         config = json.load(f)
     #model_path = "/home/stpc/experiments/mobilepixor_more_classes_03-06-2022_1/174epoch"
-    model_path = "/home/stpc/experiments/mobilepixor_aux_17-06-2022_1/354epoch"
+    model_path = "/home/stpc/experiments/scconv/152epoch"
 
     data_file = "/home/stpc/clean_data/list/small_robot_test.txt"
     dataset = Dataset(data_file, config["data"], config["augmentation"], "test")
     data_loader = DataLoader(dataset, shuffle=False, batch_size=1)
 
-    model = MobilePIXOR()
+    #model = AFDet()
     #model.to(config['device'])
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
-    device = config["device"]
+    #model.load_state_dict(torch.load(model_path, map_location="cuda:0"))
+    #device = config["device"]
 
     #model_path = "/home/stpc/models/pixor_half.pt"
-    # model_path = "/home/stpc/models/mobilepixor.pt"
-    # model = torch.jit.load(model_path)
-    # model.to("cuda:0")
+    model_path = "/home/stpc/models/afdet.pt"
+    model = torch.jit.load(model_path)
+    model.to("cuda:0")
     vis = Vis(data_loader, model, config["data"])
     vis.run()
 
